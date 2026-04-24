@@ -1,6 +1,6 @@
-import json
 from openai import AsyncOpenAI
 from core.config import settings
+from core.models.response import AnalysisResult
 
 client = AsyncOpenAI(api_key=settings.openai_api_key)
 
@@ -47,7 +47,7 @@ async def test_connection() -> str:
     return response.choices[0].message.content
 
 
-async def analyze_cv(cv_text: str, job_description: str) -> dict:
+async def analyze_cv(cv_text: str, job_description: str) -> AnalysisResult:
     user_content = (
         f"JOB DESCRIPTION:\n{job_description}\n\n"
         f"CANDIDATE CV:\n{cv_text}"
@@ -60,4 +60,4 @@ async def analyze_cv(cv_text: str, job_description: str) -> dict:
             {"role": "user", "content": user_content},
         ],
     )
-    return json.loads(response.choices[0].message.content)
+    return AnalysisResult.model_validate_json(response.choices[0].message.content)
