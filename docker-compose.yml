@@ -1,0 +1,42 @@
+services:
+  core:
+    build: .
+    container_name: cv-analyzer-core
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: cv_analyzer
+      DB_USER: cvuser
+      DB_PASSWORD: cvpass
+    volumes:
+      - .:/app
+    command: uvicorn core.main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mysql:8.0
+    container_name: cv-analyzer-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: cv_analyzer
+      MYSQL_USER: cvuser
+      MYSQL_PASSWORD: cvpass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mysql_data:
