@@ -1,5 +1,5 @@
-import uuid
 from enum import Enum
+
 from pydantic import BaseModel, Field, model_validator
 
 
@@ -17,17 +17,18 @@ class DetailedScores(BaseModel):
     soft_skills: int = Field(ge=0, le=100)
 
 
-class AnalysisResult(BaseModel):
+class CandidateRanking(BaseModel):
+    filename: str
     score: int = Field(ge=0, le=100)
     nivel: Nivel
     detailed_scores: DetailedScores
-    strengths: list[str] = Field(max_length=5)
-    gaps: list[str] = Field(max_length=4)
-    recommendations: list[str] = Field(max_length=3)
+    strengths: list[str] = Field(max_length=3)
+    gaps: list[str] = Field(max_length=3)
+    recommendations: list[str] = Field(max_length=2)
     summary: str
 
     @model_validator(mode="after")
-    def sync_nivel_with_score(self) -> "AnalysisResult":
+    def sync_nivel_with_score(self) -> "CandidateRanking":
         if self.score <= 40:
             expected = Nivel.BAJO
         elif self.score <= 65:
@@ -42,8 +43,11 @@ class AnalysisResult(BaseModel):
         return self
 
 
-class AnalyzeResponse(BaseModel):
-    analysis: AnalysisResult
-    analysis_id: uuid.UUID = Field(default_factory=uuid.uuid4)
-    processing_time_ms: int
-    model_used: str
+class RankingResponse(BaseModel):
+    ranking: list[CandidateRanking]
+    job_summary: str
+
+    @model_validator(mode="after")
+    def sort_ranking_desc(self) -> "RankingResponse":
+        self.ranking.sort(key=lambda c: c.score, reverse=True)
+        return self

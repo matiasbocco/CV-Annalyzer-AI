@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CV Analyzer AI — Test UI</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f0f2f5;
+      color: #1a1a1a;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 1.5rem; }
+    h2 { font-size: 1.05rem; font-weight: 700; margin-bottom: 1rem; color: #111; }
+    h3 { font-size: 1rem; font-weight: 700; color: #111; }
+
+    .container { max-width: 860px; margin: 0 auto; }
+
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 1.5rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+      margin-bottom: 1.25rem;
+    }
+
+    /* ── Form ── */
+    label { display: block; font-size: .875rem; font-weight: 600; margin-bottom: .4rem; color: #444; }
+
+    input[type="file"] {
+      display: block; width: 100%; padding: .5rem;
+      border: 1.5px dashed #bbb; border-radius: 6px;
+      background: #fafafa; cursor: pointer; font-size: .875rem;
+    }
+
+    textarea {
+      display: block; width: 100%; min-height: 130px; padding: .6rem .75rem;
+      border: 1.5px solid #ddd; border-radius: 6px;
+      font-size: .9rem; resize: vertical; outline: none; transition: border-color .15s;
+    }
+    textarea:focus { border-color: #4f6ef7; }
+
+    .field { margin-bottom: 1.2rem; }
+
+    button {
+      width: 100%; padding: .7rem; background: #4f6ef7; color: #fff;
+      font-size: 1rem; font-weight: 600; border: none; border-radius: 6px;
+      cursor: pointer; transition: background .15s;
+    }
+    button:hover:not(:disabled) { background: #3a57e8; }
+    button:disabled { background: #a0aec0; cursor: not-allowed; }
+
+    .status { font-size: .85rem; margin-top: .75rem; min-height: 1.25rem; color: #555; }
+    .status.error { color: #c0392b; }
+
+    /* ── Nivel badges ── */
+    .badge {
+      display: inline-block; padding: .15rem .55rem;
+      border-radius: 999px; font-size: .78rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .03em;
+    }
+    .badge-excelente { background: #dcfce7; color: #15803d; }
+    .badge-alto      { background: #dbeafe; color: #1d4ed8; }
+    .badge-medio     { background: #fef3c7; color: #b45309; }
+    .badge-bajo      { background: #fee2e2; color: #dc2626; }
+
+    /* ── Ranking table ── */
+    .ranking-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    .ranking-table th {
+      text-align: left; padding: .5rem .75rem;
+      font-size: .78rem; text-transform: uppercase;
+      letter-spacing: .05em; color: #888;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    .ranking-table td { padding: .6rem .75rem; border-bottom: 1px solid #f4f4f4; }
+    .ranking-table tr:last-child td { border-bottom: none; }
+    .ranking-table tr:hover td { background: #fafafa; }
+    .pos { font-weight: 700; color: #888; width: 2.5rem; }
+    .filename-cell { font-weight: 600; }
+    .score-cell { font-size: 1.05rem; font-weight: 700; color: #4f6ef7; }
+
+    /* ── Job summary box ── */
+    .job-summary-box {
+      background: #eef2ff;
+      border-left: 4px solid #4f6ef7;
+      border-radius: 0 10px 10px 0;
+    }
+    .job-summary-box h2 { color: #3730a3; }
+    .job-summary-box p { font-size: .95rem; line-height: 1.6; color: #374151; }
+
+    /* ── Candidate detail cards ── */
+    .candidate-card { }
+
+    .candidate-header {
+      display: flex; align-items: center; gap: .75rem;
+      margin-bottom: 1.25rem; flex-wrap: wrap;
+    }
+    .candidate-score {
+      font-size: 2rem; font-weight: 800; color: #4f6ef7; line-height: 1;
+    }
+    .candidate-meta { display: flex; flex-direction: column; gap: .25rem; }
+    .candidate-filename { font-size: 1rem; font-weight: 600; color: #111; }
+
+    /* ── Score bars ── */
+    .scores-grid { display: grid; gap: .6rem; margin-bottom: 1.25rem; }
+    .score-row { display: grid; grid-template-columns: 10rem 1fr 2.5rem; align-items: center; gap: .5rem; }
+    .score-name { font-size: .82rem; color: #555; text-transform: capitalize; }
+    .bar-track {
+      height: 8px; background: #e5e7eb; border-radius: 999px; overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%; border-radius: 999px; background: #4f6ef7;
+      transition: width .4s ease;
+    }
+    .score-num { font-size: .82rem; font-weight: 700; color: #374151; text-align: right; }
+
+    /* ── Lists ── */
+    .detail-section { margin-bottom: 1.1rem; }
+    .detail-section h3 { font-size: .82rem; text-transform: uppercase; letter-spacing: .05em; color: #888; margin-bottom: .5rem; }
+    .detail-list { list-style: none; display: flex; flex-direction: column; gap: .35rem; }
+    .detail-list li {
+      font-size: .9rem; line-height: 1.45; padding-left: 1.1rem; position: relative; color: #374151;
+    }
+    .detail-list li::before {
+      position: absolute; left: 0; font-size: .75rem; top: .15rem;
+    }
+    .list-strengths li::before { content: "✦"; color: #16a34a; }
+    .list-gaps li::before       { content: "✦"; color: #dc2626; }
+    .list-recs li::before       { content: "✦"; color: #7c3aed; }
+
+    .summary-text { font-size: .92rem; line-height: 1.6; color: #374151; font-style: italic; }
+
+    .divider { border: none; border-top: 1px solid #f0f0f0; margin: 1.25rem 0; }
+
+    /* ── Raw JSON toggle ── */
+    details.card { padding: 0; overflow: hidden; }
+    details summary {
+      padding: 1rem 1.5rem; cursor: pointer; font-size: .875rem; font-weight: 600;
+      color: #555; user-select: none; list-style: none;
+    }
+    details summary::-webkit-details-marker { display: none; }
+    details summary::before { content: "▶  "; font-size: .7rem; }
+    details[open] summary::before { content: "▼  "; }
+    details pre {
+      background: #1e1e2e; color: #cdd6f4;
+      padding: 1.25rem 1.5rem; font-size: .78rem;
+      overflow-x: auto; white-space: pre-wrap; word-break: break-word;
+      line-height: 1.6; border-top: 1px solid #f0f0f0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>CV Analyzer AI — Test UI</h1>
+
+    <div class="card">
+      <form id="form">
+        <div class="field">
+          <label for="files">CV Files (PDF — select one or more)</label>
+          <input id="files" type="file" name="files" accept=".pdf" multiple required />
+        </div>
+        <div class="field">
+          <label for="job_description">Job Description</label>
+          <textarea id="job_description" name="job_description"
+            placeholder="Paste the full job description here…" required></textarea>
+        </div>
+        <button id="btn" type="submit">Analyze CVs</button>
+        <p id="status" class="status"></p>
+      </form>
+    </div>
+
+    <div id="results" style="display:none">
+      <!-- 1. Job summary -->
+      <div class="card job-summary-box">
+        <h2>Ideal Candidate Profile</h2>
+        <p id="jobSummary"></p>
+      </div>
+
+      <!-- 2. Ranking summary -->
+      <div class="card">
+        <h2>Ranking</h2>
+        <p style="font-size:.85rem;color:#6b7280;margin-bottom:1rem;">
+          Below are the candidates ranked from best to worst fit for this position:
+        </p>
+        <table class="ranking-table">
+          <thead>
+            <tr>
+              <th class="pos">#</th>
+              <th>Candidate</th>
+              <th>Score</th>
+              <th>Nivel</th>
+            </tr>
+          </thead>
+          <tbody id="rankingBody"></tbody>
+        </table>
+      </div>
+
+      <!-- 3. Candidate details -->
+      <div id="candidateDetails"></div>
+
+      <!-- 4. Raw JSON toggle -->
+      <details class="card">
+        <summary>Show raw JSON</summary>
+        <pre id="rawJson"></pre>
+      </details>
+    </div>
+  </div>
+
+  <script>
+    const form    = document.getElementById('form');
+    const btn     = document.getElementById('btn');
+    const status  = document.getElementById('status');
+    const results = document.getElementById('results');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const files = document.getElementById('files').files;
+      if (!files.length) { setStatus('Select at least one PDF.', true); return; }
+
+      const formData = new FormData();
+      for (const f of files) formData.append('files', f);
+      formData.append('job_description', document.getElementById('job_description').value);
+
+      setStatus(`Analyzing ${files.length} CV(s)… this may take a few seconds.`);
+      btn.disabled = true;
+      results.style.display = 'none';
+
+      try {
+        const res  = await fetch('/analyze', { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (res.ok) {
+          renderResults(data);
+          setStatus(`Done — ${data.ranking?.length ?? 0} candidate(s) ranked.`);
+        } else {
+          const detail = typeof data.detail === 'string'
+            ? data.detail : JSON.stringify(data.detail);
+          setStatus(`Error ${res.status}: ${detail}`, true);
+        }
+      } catch (err) {
+        setStatus(`Network error: ${err.message}`, true);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    function renderResults(data) {
+      renderRankingTable(data.ranking);
+      document.getElementById('jobSummary').textContent = data.job_summary;
+      renderCandidateDetails(data.ranking);
+      document.getElementById('rawJson').textContent = JSON.stringify(data, null, 2);
+      results.style.display = 'block';
+      results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function renderRankingTable(ranking) {
+      const tbody = document.getElementById('rankingBody');
+      tbody.innerHTML = '';
+      ranking.forEach((c, i) => {
+        const tr = tbody.insertRow();
+        tr.innerHTML = `
+          <td class="pos">${ordinal(i + 1)}</td>
+          <td class="filename-cell">${esc(c.filename)}</td>
+          <td class="score-cell">${c.score}</td>
+          <td>${badge(c.nivel)}</td>
+        `;
+      });
+    }
+
+    function renderCandidateDetails(ranking) {
+      const container = document.getElementById('candidateDetails');
+      container.innerHTML = '';
+
+      ranking.forEach((c, i) => {
+        const card = document.createElement('div');
+        card.className = 'card candidate-card';
+        card.innerHTML = `
+          <div class="candidate-header">
+            <div class="candidate-score">${c.score}</div>
+            <div class="candidate-meta">
+              <span class="candidate-filename">${esc(c.filename)}</span>
+              ${badge(c.nivel)}
+            </div>
+          </div>
+
+          <div class="scores-grid">
+            ${scoreBar('Technical Skills', c.detailed_scores.technical_skills)}
+            ${scoreBar('Experience',       c.detailed_scores.experience)}
+            ${scoreBar('Education',        c.detailed_scores.education)}
+            ${scoreBar('Soft Skills',      c.detailed_scores.soft_skills)}
+          </div>
+
+          <hr class="divider" />
+
+          <div class="detail-section">
+            <h3>Strengths</h3>
+            ${bulletList(c.strengths, 'list-strengths')}
+          </div>
+
+          <div class="detail-section">
+            <h3>Gaps</h3>
+            ${bulletList(c.gaps, 'list-gaps')}
+          </div>
+
+          <div class="detail-section">
+            <h3>Recommendations</h3>
+            ${bulletList(c.recommendations, 'list-recs')}
+          </div>
+
+          <hr class="divider" />
+
+          <p class="summary-text">${esc(c.summary)}</p>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    /* ── helpers ── */
+
+    function badge(nivel) {
+      const cls = { excelente: 'badge-excelente', alto: 'badge-alto',
+                    medio: 'badge-medio', bajo: 'badge-bajo' }[nivel] ?? '';
+      return `<span class="badge ${cls}">${esc(nivel)}</span>`;
+    }
+
+    function scoreBar(label, value) {
+      return `
+        <div class="score-row">
+          <span class="score-name">${esc(label)}</span>
+          <div class="bar-track">
+            <div class="bar-fill" style="width:${value}%"></div>
+          </div>
+          <span class="score-num">${value}</span>
+        </div>`;
+    }
+
+    function bulletList(items, cssClass) {
+      if (!items?.length) return '<p style="font-size:.85rem;color:#aaa">—</p>';
+      const lis = items.map(t => `<li>${esc(t)}</li>`).join('');
+      return `<ul class="detail-list ${cssClass}">${lis}</ul>`;
+    }
+
+    function ordinal(n) {
+      const s = ['th','st','nd','rd'];
+      const v = n % 100;
+      return n + (s[(v - 20) % 10] || s[v] || s[0]);
+    }
+
+    function esc(str) {
+      return String(str ?? '')
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function setStatus(msg, isError = false) {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = 'status' + (isError ? ' error' : '');
+    }
+  </script>
+</body>
+</html>

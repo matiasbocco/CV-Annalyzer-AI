@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "PowerShell(& \"c:\\\\Users\\\\Mbocco\\\\OneDrive\\\\Escritorio\\\\Mati\\\\mati bocco papá\\\\CV-Annalyzer-AI\\\\CV-Annalyzer-AI\\\\venv\\\\Scripts\\\\pip.exe\" install pdfplumber)"
+      "PowerShell(& \"c:\\\\Users\\\\Mbocco\\\\OneDrive\\\\Escritorio\\\\Mati\\\\mati bocco papá\\\\CV-Annalyzer-AI\\\\CV-Annalyzer-AI\\\\venv\\\\Scripts\\\\pip.exe\" install pdfplumber)",
+      "PowerShell(& \"c:\\\\Users\\\\Mbocco\\\\OneDrive\\\\Escritorio\\\\Mati\\\\mati bocco papá\\\\CV-Annalyzer-AI\\\\CV-Annalyzer-AI\\\\venv\\\\Scripts\\\\pip.exe\" install sqlalchemy aiomysql alembic)",
+      "PowerShell(& \"c:\\\\Users\\\\Mbocco\\\\OneDrive\\\\Escritorio\\\\Mati\\\\mati bocco papá\\\\CV-Annalyzer-AI\\\\CV-Annalyzer-AI\\\\venv\\\\Scripts\\\\alembic.exe\" init -t async alembic)",
+      "PowerShell(Out-File *)",
+      "PowerShell(& \"c:\\\\Users\\\\Mbocco\\\\OneDrive\\\\Escritorio\\\\Mati\\\\mati bocco papá\\\\CV-Annalyzer-AI\\\\CV-Annalyzer-AI\\\\venv\\\\Scripts\\\\pip.exe\" install aiofiles)"
     ]
   }
 }

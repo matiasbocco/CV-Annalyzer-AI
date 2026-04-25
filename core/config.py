@@ -7,5 +7,9 @@ class Settings(BaseSettings):
     openai_api_key: str
     openai_model: str = "gpt-4o-mini"
 
+    database_url: str = (
+        "mysql+aiomysql://cvuser:cvpass@localhost:3306/cv_analyzer"
+    )
+
 
 settings = Settings()
