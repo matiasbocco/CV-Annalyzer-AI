@@ -230,6 +230,16 @@
           <textarea id="job_description" name="job_description"
             placeholder="Paste the full job description here…" required></textarea>
         </div>
+        <div class="field" style="margin-bottom:.9rem">
+          <label style="display:flex;align-items:center;gap:.5rem;font-weight:400;color:#374151;cursor:pointer">
+            <input id="include_bank" type="checkbox" style="width:1rem;height:1rem;cursor:pointer" />
+            Include candidates from the CV bank in the ranking
+          </label>
+          <p style="font-size:.78rem;color:#9ca3af;margin-top:.3rem;margin-left:1.5rem">
+            When unchecked, only the uploaded CVs are scored. Bank candidates are never
+            shown but the uploaded CVs are always added to the bank after analysis.
+          </p>
+        </div>
         <button id="btn" type="submit">Analyze CVs</button>
         <p id="status" class="status"></p>
       </form>
@@ -336,6 +346,7 @@
       const formData = new FormData();
       for (const f of files) formData.append('files', f);
       formData.append('job_description', document.getElementById('job_description').value);
+      formData.append('include_bank', document.getElementById('include_bank').checked ? 'true' : 'false');
 
       setStatus(`Analyzing ${files.length} CV(s)… this may take a few seconds.`);
       btn.disabled = true;

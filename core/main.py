@@ -222,6 +222,7 @@ async def list_categories(db: AsyncSession = Depends(get_db)):
 async def analyze(
     files: Annotated[list[UploadFile], File(description="One or more CV PDFs")],
     job_description: Annotated[str, Form(description="Job description text")],
+    include_bank: Annotated[bool, Form(description="Merge top bank candidates into ranking")] = False,
     db: AsyncSession = Depends(get_db),
 ):
     # 1. Extract uploaded PDFs.
@@ -238,14 +239,14 @@ async def analyze(
 
     uploaded_hashes = {compute_text_hash(text) for _, text in cvs}
 
-    # 2. Semantic search for bank candidates (best-effort; failures are silent).
+    # 2. Semantic search for bank candidates — only when explicitly requested.
     bank_cv_records: list[CV] = []
-    job_embedding: list[float] | None = None
-    try:
-        job_embedding = await generate_embedding(job_description)
-        bank_cv_records = await _search_bank(job_embedding, uploaded_hashes, 5, db)
-    except Exception:
-        pass  # degrade gracefully — analysis continues with uploaded CVs only
+    if include_bank:
+        try:
+            job_embedding = await generate_embedding(job_description)
+            bank_cv_records = await _search_bank(job_embedding, uploaded_hashes, 5, db)
+        except Exception:
+            pass  # degrade gracefully — analysis continues with uploaded CVs only
 
     bank_cvs_for_llm = [
         {"filename": cv.filename, "text": cv.text_content}
