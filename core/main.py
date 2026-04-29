@@ -56,7 +56,38 @@ from core.services.ttl_service import expire_old_cvs
 
 STATIC_DIR = Path(__file__).parent / "static"
 
+_startup_log = __import__("logging").getLogger(__name__)
+
 # ── Startup / shutdown ────────────────────────────────────────────────────────
+
+async def _check_bank_drift(db: AsyncSession) -> None:
+    """Warn if MySQL CV count diverges from ChromaDB vector count."""
+    try:
+        from sqlalchemy import func as sqlfunc
+        from core.db.models import CV as _CV
+        mysql_count: int = (
+            await db.execute(
+                select(sqlfunc.count())
+                .select_from(_CV)
+                .where(_CV.embedding.is_not(None), _CV.is_expired.is_(False))
+            )
+        ).scalar_one()
+
+        col = await asyncio.to_thread(vector_service._get_collection)
+        chroma_count = col.count() if col else 0
+
+        if mysql_count != chroma_count:
+            _startup_log.warning(
+                "[bank-drift] MySQL has %d active CV(s) with embeddings but "
+                "ChromaDB has %d vector(s). Run: python -m core.scripts.rebuild_chroma",
+                mysql_count,
+                chroma_count,
+            )
+        else:
+            _startup_log.info("[bank-sync] OK — %d CV(s) in MySQL match ChromaDB.", mysql_count)
+    except Exception as exc:
+        _startup_log.warning("[bank-drift] Could not verify bank sync: %s", exc)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -64,6 +95,7 @@ async def lifespan(app: FastAPI):
         expired = await expire_old_cvs(db)
         if expired:
             print(f"[startup] Expired {expired} stale CV(s).")
+        await _check_bank_drift(db)
     yield
 
 app = FastAPI(title="CV Analyzer AI", lifespan=lifespan)
