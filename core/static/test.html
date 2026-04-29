@@ -55,6 +55,11 @@
     button:hover:not(:disabled) { background: #3a57e8; }
     button:disabled { background: #a0aec0; cursor: not-allowed; }
 
+    .btn-secondary {
+      background: #f3f4f6; color: #374151; border: 1.5px solid #d1d5db;
+    }
+    .btn-secondary:hover:not(:disabled) { background: #e5e7eb; }
+
     .status { font-size: .85rem; margin-top: .75rem; min-height: 1.25rem; color: #555; }
     .status.error { color: #c0392b; }
 
@@ -68,6 +73,25 @@
     .badge-alto      { background: #dbeafe; color: #1d4ed8; }
     .badge-medio     { background: #fef3c7; color: #b45309; }
     .badge-bajo      { background: #fee2e2; color: #dc2626; }
+
+    /* ── Category badge ── */
+    .category-pill {
+      display: inline-flex; align-items: center; gap: .4rem;
+      background: #ede9fe; color: #5b21b6;
+      border-radius: 999px; padding: .25rem .75rem;
+      font-size: .8rem; font-weight: 600; margin-bottom: 1rem;
+    }
+    .category-pill::before { content: "🏷"; font-size: .75rem; }
+
+    /* ── Source badges ── */
+    .src-badge {
+      display: inline-block; padding: .1rem .45rem;
+      border-radius: 999px; font-size: .72rem; font-weight: 700;
+      letter-spacing: .02em; white-space: nowrap;
+    }
+    .src-uploaded { background: #dbeafe; color: #1e40af; }
+    .src-bank     { background: #ede9fe; color: #5b21b6; }
+    .score-adjusted { font-size: .75rem; color: #9ca3af; }
 
     /* ── Ranking table ── */
     .ranking-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
@@ -94,8 +118,6 @@
     .job-summary-box p { font-size: .95rem; line-height: 1.6; color: #374151; }
 
     /* ── Candidate detail cards ── */
-    .candidate-card { }
-
     .candidate-header {
       display: flex; align-items: center; gap: .75rem;
       margin-bottom: 1.25rem; flex-wrap: wrap;
@@ -110,13 +132,8 @@
     .scores-grid { display: grid; gap: .6rem; margin-bottom: 1.25rem; }
     .score-row { display: grid; grid-template-columns: 10rem 1fr 2.5rem; align-items: center; gap: .5rem; }
     .score-name { font-size: .82rem; color: #555; text-transform: capitalize; }
-    .bar-track {
-      height: 8px; background: #e5e7eb; border-radius: 999px; overflow: hidden;
-    }
-    .bar-fill {
-      height: 100%; border-radius: 999px; background: #4f6ef7;
-      transition: width .4s ease;
-    }
+    .bar-track { height: 8px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 999px; background: #4f6ef7; transition: width .4s ease; }
     .score-num { font-size: .82rem; font-weight: 700; color: #374151; text-align: right; }
 
     /* ── Lists ── */
@@ -126,16 +143,60 @@
     .detail-list li {
       font-size: .9rem; line-height: 1.45; padding-left: 1.1rem; position: relative; color: #374151;
     }
-    .detail-list li::before {
-      position: absolute; left: 0; font-size: .75rem; top: .15rem;
-    }
+    .detail-list li::before { position: absolute; left: 0; font-size: .75rem; top: .15rem; }
     .list-strengths li::before { content: "✦"; color: #16a34a; }
     .list-gaps li::before       { content: "✦"; color: #dc2626; }
     .list-recs li::before       { content: "✦"; color: #7c3aed; }
 
     .summary-text { font-size: .92rem; line-height: 1.6; color: #374151; font-style: italic; }
-
     .divider { border: none; border-top: 1px solid #f0f0f0; margin: 1.25rem 0; }
+
+    /* ── Feedback / star rating ── */
+    .feedback-section h2 { margin-bottom: .75rem; }
+    .stars { display: flex; gap: .4rem; cursor: pointer; margin-bottom: .75rem; }
+    .star { font-size: 2rem; color: #d1d5db; transition: color .1s; line-height: 1; user-select: none; }
+    .star.lit   { color: #f59e0b; }
+    .star.hover { color: #fbbf24; }
+    .feedback-msg { font-size: .88rem; min-height: 1.25rem; }
+    .feedback-msg.ok  { color: #16a34a; }
+    .feedback-msg.err { color: #dc2626; }
+
+    /* ── Tiebreaker ── */
+    .tiebreaker-intro p {
+      font-size: .9rem; color: #6b7280; margin-bottom: 1rem; line-height: 1.5;
+    }
+    .question-progress {
+      font-size: .78rem; text-transform: uppercase; letter-spacing: .05em;
+      color: #9ca3af; margin-bottom: .5rem;
+    }
+    .question-text { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; }
+    .option-label {
+      display: flex; align-items: flex-start; gap: .6rem;
+      padding: .7rem .9rem; border: 1.5px solid #e5e7eb; border-radius: 8px;
+      margin-bottom: .5rem; cursor: pointer; font-size: .9rem; transition: border-color .12s;
+    }
+    .option-label:hover { border-color: #4f6ef7; }
+    .option-label input[type="radio"] { margin-top: .15rem; flex-shrink: 0; }
+    .option-label.selected { border-color: #4f6ef7; background: #eef2ff; }
+    #nextQuestionBtn { margin-top: 1rem; }
+    .tb-error { font-size: .85rem; color: #c0392b; margin-top: .5rem; min-height: 1rem; }
+
+    /* Tiebreaker result */
+    .tb-result-list { display: flex; flex-direction: column; gap: .5rem; margin-top: .75rem; }
+    .tb-candidate {
+      display: flex; align-items: center; gap: .75rem;
+      padding: .6rem .9rem; border-radius: 8px; font-size: .9rem;
+      border: 1.5px solid #e5e7eb;
+    }
+    .tb-candidate.moved-up   { border-color: #16a34a; background: #f0fdf4; }
+    .tb-candidate.moved-down { border-color: #dc2626; background: #fef2f2; }
+    .tb-candidate.no-change  { border-color: #e5e7eb; background: #f9fafb; }
+    .tb-arrow { font-size: 1.1rem; font-weight: 800; width: 1.25rem; text-align: center; }
+    .tb-arrow.up   { color: #16a34a; }
+    .tb-arrow.down { color: #dc2626; }
+    .tb-arrow.same { color: #9ca3af; }
+    .tb-filename { font-weight: 600; flex: 1; }
+    .tb-move-label { font-size: .78rem; color: #6b7280; }
 
     /* ── Raw JSON toggle ── */
     details.card { padding: 0; overflow: hidden; }
@@ -175,14 +236,16 @@
     </div>
 
     <div id="results" style="display:none">
+
       <!-- 1. Job summary -->
       <div class="card job-summary-box">
         <h2>Ideal Candidate Profile</h2>
         <p id="jobSummary"></p>
       </div>
 
-      <!-- 2. Ranking summary -->
+      <!-- 2. Ranking (with category badge) -->
       <div class="card">
+        <div id="categoryBadge" style="display:none"></div>
         <h2>Ranking</h2>
         <p style="font-size:.85rem;color:#6b7280;margin-bottom:1rem;">
           Below are the candidates ranked from best to worst fit for this position:
@@ -194,6 +257,7 @@
               <th>Candidate</th>
               <th>Score</th>
               <th>Nivel</th>
+              <th>Source</th>
             </tr>
           </thead>
           <tbody id="rankingBody"></tbody>
@@ -203,7 +267,52 @@
       <!-- 3. Candidate details -->
       <div id="candidateDetails"></div>
 
-      <!-- 4. Raw JSON toggle -->
+      <!-- 4. Feedback -->
+      <div id="feedbackSection" class="card feedback-section" style="display:none">
+        <h2>How useful was this ranking?</h2>
+        <div class="stars" id="stars">
+          <span class="star" data-value="1">★</span>
+          <span class="star" data-value="2">★</span>
+          <span class="star" data-value="3">★</span>
+          <span class="star" data-value="4">★</span>
+          <span class="star" data-value="5">★</span>
+        </div>
+        <p id="feedbackMsg" class="feedback-msg"></p>
+      </div>
+
+      <!-- 5. Tiebreaker -->
+      <div id="tiebreakerSection" style="display:none">
+
+        <!-- 5a. Intro / CTA -->
+        <div id="tbIdle" class="card tiebreaker-intro">
+          <h2>Need help deciding between close candidates?</h2>
+          <p id="tbIdleDesc"></p>
+          <button id="tbStartBtn" class="btn-secondary" style="width:auto;padding:.55rem 1.25rem">
+            Answer a few questions →
+          </button>
+        </div>
+
+        <!-- 5b. Question flow -->
+        <div id="tbQuestions" class="card" style="display:none">
+          <p class="question-progress" id="questionProgress"></p>
+          <p class="question-text" id="questionText"></p>
+          <div id="questionOptions"></div>
+          <p class="tb-error" id="tbError"></p>
+          <button id="nextQuestionBtn">Next question</button>
+        </div>
+
+        <!-- 5c. Result -->
+        <div id="tbResult" class="card" style="display:none">
+          <h2>Updated ranking based on your preferences</h2>
+          <p style="font-size:.85rem;color:#6b7280;margin-bottom:.75rem">
+            Within the close cluster, the order has been adjusted:
+          </p>
+          <div class="tb-result-list" id="tbResultList"></div>
+        </div>
+
+      </div>
+
+      <!-- 6. Raw JSON toggle -->
       <details class="card">
         <summary>Show raw JSON</summary>
         <pre id="rawJson"></pre>
@@ -214,12 +323,13 @@
   <script>
     const form    = document.getElementById('form');
     const btn     = document.getElementById('btn');
-    const status  = document.getElementById('status');
     const results = document.getElementById('results');
 
+    /* ════════════════════════════════════════════
+       SUBMIT
+    ════════════════════════════════════════════ */
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-
       const files = document.getElementById('files').files;
       if (!files.length) { setStatus('Select at least one PDF.', true); return; }
 
@@ -234,13 +344,11 @@
       try {
         const res  = await fetch('/analyze', { method: 'POST', body: formData });
         const data = await res.json();
-
         if (res.ok) {
           renderResults(data);
           setStatus(`Done — ${data.ranking?.length ?? 0} candidate(s) ranked.`);
         } else {
-          const detail = typeof data.detail === 'string'
-            ? data.detail : JSON.stringify(data.detail);
+          const detail = typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail);
           setStatus(`Error ${res.status}: ${detail}`, true);
         }
       } catch (err) {
@@ -250,36 +358,58 @@
       }
     });
 
+    /* ════════════════════════════════════════════
+       RENDER RESULTS
+    ════════════════════════════════════════════ */
     function renderResults(data) {
+      renderCategory(data.category);
       renderRankingTable(data.ranking);
       document.getElementById('jobSummary').textContent = data.job_summary;
       renderCandidateDetails(data.ranking);
       document.getElementById('rawJson').textContent = JSON.stringify(data, null, 2);
+      initFeedback(data.analysis_id);
+      initTiebreaker(data.analysis_id, data.ranking);
       results.style.display = 'block';
       results.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
+    /* ── Category badge ── */
+    function renderCategory(category) {
+      const el = document.getElementById('categoryBadge');
+      if (category) {
+        el.innerHTML = `<span class="category-pill">Detected category: ${esc(category.display_name)}</span>`;
+        el.style.display = 'block';
+      } else {
+        el.style.display = 'none';
+      }
+    }
+
+    /* ── Ranking table ── */
     function renderRankingTable(ranking) {
       const tbody = document.getElementById('rankingBody');
       tbody.innerHTML = '';
       ranking.forEach((c, i) => {
+        const scoreHtml = c.original_score != null
+          ? `${c.score} <span class="score-adjusted">(orig: ${c.original_score})</span>`
+          : `${c.score}`;
         const tr = tbody.insertRow();
         tr.innerHTML = `
           <td class="pos">${ordinal(i + 1)}</td>
           <td class="filename-cell">${esc(c.filename)}</td>
-          <td class="score-cell">${c.score}</td>
+          <td class="score-cell">${scoreHtml}</td>
           <td>${badge(c.nivel)}</td>
+          <td>${sourceBadge(c.source, c.recency_factor_applied)}</td>
         `;
       });
     }
 
+    /* ── Candidate detail cards ── */
     function renderCandidateDetails(ranking) {
       const container = document.getElementById('candidateDetails');
       container.innerHTML = '';
-
-      ranking.forEach((c, i) => {
+      ranking.forEach((c) => {
         const card = document.createElement('div');
-        card.className = 'card candidate-card';
+        card.className = 'card';
         card.innerHTML = `
           <div class="candidate-header">
             <div class="candidate-score">${c.score}</div>
@@ -288,67 +418,287 @@
               ${badge(c.nivel)}
             </div>
           </div>
-
           <div class="scores-grid">
             ${scoreBar('Technical Skills', c.detailed_scores.technical_skills)}
             ${scoreBar('Experience',       c.detailed_scores.experience)}
             ${scoreBar('Education',        c.detailed_scores.education)}
             ${scoreBar('Soft Skills',      c.detailed_scores.soft_skills)}
           </div>
-
           <hr class="divider" />
-
           <div class="detail-section">
-            <h3>Strengths</h3>
-            ${bulletList(c.strengths, 'list-strengths')}
+            <h3>Strengths</h3>${bulletList(c.strengths, 'list-strengths')}
           </div>
-
           <div class="detail-section">
-            <h3>Gaps</h3>
-            ${bulletList(c.gaps, 'list-gaps')}
+            <h3>Gaps</h3>${bulletList(c.gaps, 'list-gaps')}
           </div>
-
           <div class="detail-section">
-            <h3>Recommendations</h3>
-            ${bulletList(c.recommendations, 'list-recs')}
+            <h3>Recommendations</h3>${bulletList(c.recommendations, 'list-recs')}
           </div>
-
           <hr class="divider" />
-
           <p class="summary-text">${esc(c.summary)}</p>
         `;
         container.appendChild(card);
       });
     }
 
-    /* ── helpers ── */
+    /* ════════════════════════════════════════════
+       FEEDBACK
+    ════════════════════════════════════════════ */
+    let _analysisId   = null;
+    let _currentRating = 0;
 
+    function initFeedback(analysisId) {
+      _analysisId    = analysisId;
+      _currentRating = 0;
+      paintStars(0);
+      const msg = document.getElementById('feedbackMsg');
+      msg.textContent = '';
+      msg.className = 'feedback-msg';
+      document.getElementById('feedbackSection').style.display = 'block';
+    }
+
+    function paintStars(rating) {
+      document.querySelectorAll('.star').forEach(s => {
+        s.classList.toggle('lit', parseInt(s.dataset.value) <= rating);
+      });
+    }
+
+    document.querySelectorAll('.star').forEach(star => {
+      star.addEventListener('mouseenter', () => {
+        const v = parseInt(star.dataset.value);
+        document.querySelectorAll('.star').forEach(s => {
+          s.classList.toggle('hover', parseInt(s.dataset.value) <= v);
+        });
+      });
+      star.addEventListener('mouseleave', () => {
+        document.querySelectorAll('.star').forEach(s => s.classList.remove('hover'));
+        paintStars(_currentRating);
+      });
+      star.addEventListener('click', async () => {
+        const rating = parseInt(star.dataset.value);
+        _currentRating = rating;
+        paintStars(rating);
+        const msg = document.getElementById('feedbackMsg');
+        msg.textContent = '';
+        msg.className = 'feedback-msg';
+        try {
+          const res = await fetch(`/analyses/${_analysisId}/feedback`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rating }),
+          });
+          if (res.ok) {
+            msg.textContent = 'Thanks for your feedback!';
+            msg.className = 'feedback-msg ok';
+          } else {
+            msg.textContent = 'Could not save feedback.';
+            msg.className = 'feedback-msg err';
+          }
+        } catch {
+          const msg2 = document.getElementById('feedbackMsg');
+          msg2.textContent = 'Network error.';
+          msg2.className = 'feedback-msg err';
+        }
+      });
+    });
+
+    /* ════════════════════════════════════════════
+       TIEBREAKER
+    ════════════════════════════════════════════ */
+    const tb = {
+      analysisId: null,
+      sessionId: null,
+      questions: [],
+      currentIdx: 0,
+      answers: [],       // [{question_id, option_id}]
+      clusterFilenames: [],
+    };
+
+    function detectCluster(ranking, threshold = 5) {
+      if (!ranking || ranking.length < 2) return [];
+      const top = ranking[0].score;
+      const cluster = ranking.filter(c => c.score >= top - threshold);
+      return cluster.length >= 2 ? cluster.map(c => c.filename) : [];
+    }
+
+    function initTiebreaker(analysisId, ranking) {
+      const cluster = detectCluster(ranking);
+      if (cluster.length < 2) return;
+
+      tb.analysisId = analysisId;
+      tb.clusterFilenames = cluster;
+
+      // Show the idle CTA
+      const desc = document.getElementById('tbIdleDesc');
+      desc.textContent = `${cluster.length} candidates are within 5 points of each other (${cluster.map(f => f.replace(/\.pdf$/i, '')).join(', ')}). Answer a couple of quick questions to get a personalised re-ranking.`;
+
+      document.getElementById('tbIdle').style.display = 'block';
+      document.getElementById('tbQuestions').style.display = 'none';
+      document.getElementById('tbResult').style.display = 'none';
+      document.getElementById('tiebreakerSection').style.display = 'block';
+    }
+
+    document.getElementById('tbStartBtn').addEventListener('click', async () => {
+      const btn2 = document.getElementById('tbStartBtn');
+      btn2.disabled = true;
+      btn2.textContent = 'Loading questions…';
+
+      try {
+        const res  = await fetch(`/analyses/${tb.analysisId}/tiebreaker`, { method: 'POST' });
+        const data = await res.json();
+
+        if (!res.ok) {
+          btn2.textContent = 'Try again';
+          btn2.disabled = false;
+          return;
+        }
+        if (!data.needed) {
+          document.getElementById('tbIdle').style.display = 'none';
+          return;
+        }
+
+        tb.sessionId   = data.session_id;
+        tb.questions   = data.questions;
+        tb.currentIdx  = 0;
+        tb.answers     = [];
+
+        document.getElementById('tbIdle').style.display = 'none';
+        showTbQuestion(0);
+      } catch {
+        btn2.textContent = 'Try again';
+        btn2.disabled = false;
+      }
+    });
+
+    function showTbQuestion(idx) {
+      const q     = tb.questions[idx];
+      const total = tb.questions.length;
+
+      document.getElementById('questionProgress').textContent =
+        `Question ${idx + 1} of ${total}`;
+      document.getElementById('questionText').textContent = q.text;
+      document.getElementById('tbError').textContent = '';
+
+      const optDiv = document.getElementById('questionOptions');
+      optDiv.innerHTML = q.options.map(opt => `
+        <label class="option-label">
+          <input type="radio" name="tbOpt" value="${esc(opt.id)}" />
+          <span>${esc(opt.text)}</span>
+        </label>
+      `).join('');
+
+      // Highlight the label when its radio is selected
+      optDiv.querySelectorAll('input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+          optDiv.querySelectorAll('.option-label').forEach(l => l.classList.remove('selected'));
+          radio.closest('.option-label').classList.add('selected');
+        });
+      });
+
+      const nextBtn = document.getElementById('nextQuestionBtn');
+      nextBtn.textContent = idx === total - 1 ? 'See results' : 'Next question';
+
+      document.getElementById('tbQuestions').style.display = 'block';
+    }
+
+    document.getElementById('nextQuestionBtn').addEventListener('click', async () => {
+      const selected = document.querySelector('input[name="tbOpt"]:checked');
+      if (!selected) {
+        document.getElementById('tbError').textContent = 'Please select an option.';
+        return;
+      }
+      document.getElementById('tbError').textContent = '';
+
+      const q = tb.questions[tb.currentIdx];
+      tb.answers.push({ question_id: q.id, option_id: selected.value });
+
+      if (tb.currentIdx < tb.questions.length - 1) {
+        tb.currentIdx++;
+        showTbQuestion(tb.currentIdx);
+      } else {
+        await submitTbAnswers();
+      }
+    });
+
+    async function submitTbAnswers() {
+      const nextBtn = document.getElementById('nextQuestionBtn');
+      nextBtn.disabled = true;
+      nextBtn.textContent = 'Processing…';
+
+      try {
+        const res  = await fetch(`/tiebreaker/${tb.sessionId}/answer`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ answers: tb.answers }),
+        });
+        const data = await res.json();
+
+        document.getElementById('tbQuestions').style.display = 'none';
+        if (res.ok) {
+          renderTbResult(data);
+        } else {
+          const errDiv = document.getElementById('tbResult');
+          errDiv.innerHTML = `<p style="color:#c0392b">Could not compute result: ${esc(JSON.stringify(data.detail))}</p>`;
+          errDiv.style.display = 'block';
+        }
+      } catch {
+        nextBtn.disabled = false;
+        nextBtn.textContent = 'Retry';
+      }
+    }
+
+    function renderTbResult(data) {
+      const list = document.getElementById('tbResultList');
+      list.innerHTML = data.adjustments.map(adj => {
+        const cls   = adj.moved > 0 ? 'moved-up' : adj.moved < 0 ? 'moved-down' : 'no-change';
+        const arrow = adj.moved > 0 ? '↑' : adj.moved < 0 ? '↓' : '→';
+        const aCls  = adj.moved > 0 ? 'up' : adj.moved < 0 ? 'down' : 'same';
+        const label = adj.moved !== 0
+          ? `${Math.abs(adj.moved)} position${Math.abs(adj.moved) > 1 ? 's' : ''} ${adj.moved > 0 ? 'up' : 'down'}`
+          : 'no change';
+        return `
+          <div class="tb-candidate ${cls}">
+            <span class="tb-arrow ${aCls}">${arrow}</span>
+            <span class="tb-filename">${esc(adj.filename)}</span>
+            <span class="tb-move-label">${label}</span>
+          </div>`;
+      }).join('');
+      document.getElementById('tbResult').style.display = 'block';
+    }
+
+    /* ════════════════════════════════════════════
+       HELPERS
+    ════════════════════════════════════════════ */
     function badge(nivel) {
       const cls = { excelente: 'badge-excelente', alto: 'badge-alto',
-                    medio: 'badge-medio', bajo: 'badge-bajo' }[nivel] ?? '';
+                    medio: 'badge-medio',       bajo: 'badge-bajo' }[nivel] ?? '';
       return `<span class="badge ${cls}">${esc(nivel)}</span>`;
+    }
+
+    function sourceBadge(source, recencyFactor) {
+      if (source === 'uploaded') {
+        return `<span class="src-badge src-uploaded">Uploaded</span>`;
+      }
+      const suffix = recencyFactor < 1.0 ? ` · ${recencyFactor}×` : '';
+      return `<span class="src-badge src-bank">From bank${esc(suffix)}</span>`;
     }
 
     function scoreBar(label, value) {
       return `
         <div class="score-row">
           <span class="score-name">${esc(label)}</span>
-          <div class="bar-track">
-            <div class="bar-fill" style="width:${value}%"></div>
-          </div>
+          <div class="bar-track"><div class="bar-fill" style="width:${value}%"></div></div>
           <span class="score-num">${value}</span>
         </div>`;
     }
 
     function bulletList(items, cssClass) {
       if (!items?.length) return '<p style="font-size:.85rem;color:#aaa">—</p>';
-      const lis = items.map(t => `<li>${esc(t)}</li>`).join('');
-      return `<ul class="detail-list ${cssClass}">${lis}</ul>`;
+      return `<ul class="detail-list ${cssClass}">${items.map(t => `<li>${esc(t)}</li>`).join('')}</ul>`;
     }
 
     function ordinal(n) {
-      const s = ['th','st','nd','rd'];
-      const v = n % 100;
+      const s = ['th','st','nd','rd'], v = n % 100;
       return n + (s[(v - 20) % 10] || s[v] || s[0]);
     }
 
