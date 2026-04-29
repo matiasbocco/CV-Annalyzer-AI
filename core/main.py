@@ -357,34 +357,57 @@ async def analyze(
     )
 
 
-# ── Bulk CV upload ────────────────────────────────────────────────────────────
+# ── Candidate CV upload (single file, candidate-facing) ──────────────────────
 
-@app.post("/cvs/batch", status_code=200)
-async def batch_upload_cvs(
-    files: Annotated[list[UploadFile], File(description="PDF files to add to the bank")],
+@app.post("/cvs/batch")
+async def upload_candidate_cv(
+    file: Annotated[UploadFile, File(description="Candidate's CV in PDF format")],
     db: AsyncSession = Depends(get_db),
 ):
-    added = duplicates = failed = 0
-    cv_ids: list[str] = []
+    fname = file.filename or "cv.pdf"
+    try:
+        raw = await file.read()
+    except Exception:
+        return JSONResponse(status_code=400, content={
+            "status": "failed", "filename": fname, "cv_id": None,
+            "message": "No se pudo leer el archivo.",
+        })
 
-    for file in files:
-        try:
-            raw = await file.read()
-            text = extract_text(raw)
-            if not text.strip():
-                failed += 1
-                continue
-            cv, is_new = await ingest_cv(db, file.filename, text)
-            cv_ids.append(str(cv.id))
-            if is_new:
-                added += 1
-            else:
-                duplicates += 1
-        except Exception:
-            failed += 1
+    try:
+        text = extract_text(raw)
+    except Exception:
+        return JSONResponse(status_code=400, content={
+            "status": "failed", "filename": fname, "cv_id": None,
+            "message": "El archivo no es un PDF válido.",
+        })
 
-    await db.commit()
-    return {"added": added, "duplicates": duplicates, "failed": failed, "cv_ids": cv_ids}
+    if not text.strip():
+        return JSONResponse(status_code=400, content={
+            "status": "failed", "filename": fname, "cv_id": None,
+            "message": "No se pudo extraer texto del PDF. "
+                       "Asegurate de que no esté escaneado como imagen.",
+        })
+
+    try:
+        cv, is_new = await ingest_cv(db, fname, text)
+        await db.commit()
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).error("CV ingest failed: %s", exc)
+        return JSONResponse(status_code=400, content={
+            "status": "failed", "filename": fname, "cv_id": None,
+            "message": "Error interno al guardar el CV.",
+        })
+
+    if is_new:
+        return JSONResponse(status_code=201, content={
+            "status": "added", "filename": fname, "cv_id": str(cv.id),
+            "message": "Tu CV fue agregado al banco exitosamente.",
+        })
+    return JSONResponse(status_code=200, content={
+        "status": "duplicate", "filename": fname, "cv_id": str(cv.id),
+        "message": "Este CV ya está en el banco.",
+    })
 
 
 # ── Match-job (bank-only ranking) ─────────────────────────────────────────────
