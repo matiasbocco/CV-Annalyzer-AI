@@ -21,7 +21,12 @@
       "Bash(./venv/Scripts/python -m core.scripts.rebuild_chroma)",
       "Bash(./venv/Scripts/python -m alembic upgrade head)",
       "Bash(./venv/Scripts/python -c ' *)",
-      "Bash(./venv/Scripts/python -m core.scripts.backfill_contact_info)"
+      "Bash(./venv/Scripts/python -m core.scripts.backfill_contact_info)",
+      "Bash(npm --version)",
+      "Bash(npm create *)",
+      "Bash(npm install *)",
+      "Bash(npx tailwindcss *)",
+      "Bash(npx tsc *)"
     ]
   }
 }
