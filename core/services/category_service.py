@@ -33,6 +33,9 @@ Rules:
   in a domain clearly not covered.
 - A new slug must be lowercase and hyphen-separated (e.g. "blockchain-developer").
 - required_skills must be a list of 5-10 key skills.
+- Respond in the same language as the job description. If the job description
+  is in Spanish, use Spanish for display_name, description, and required_skills.
+  If in English, use English.
 
 Respond with valid JSON only, no commentary:
   {"action": "match", "slug": "<existing-slug>", "new_category": null}

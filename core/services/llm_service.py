@@ -48,6 +48,10 @@ RANKING_SYSTEM_PROMPT = (
     "Sort 'ranking' from highest 'score' to lowest. Also produce 'job_summary': "
     "2-3 sentences describing the ideal candidate profile based on the job "
     "description (independent of the CVs received).\n\n"
+    "Respond in the same language as the job description. If the job description "
+    "is in Spanish, respond in Spanish. If in English, respond in English. This "
+    "applies to ALL text fields: strengths, gaps, recommendations, summary, and "
+    "job_summary.\n\n"
     "Reply ONLY with valid JSON matching this exact shape:\n"
     "{\n"
     '  "ranking": [\n'
