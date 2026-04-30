@@ -7,29 +7,52 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: system-ui, sans-serif; background: #f0f2f5; color: #1a1a1a; min-height: 100vh; padding: 2rem 1rem; }
-    .container { max-width: 520px; margin: 0 auto; }
+    .container { max-width: 540px; margin: 0 auto; }
     h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: .5rem; }
     .subtitle { font-size: .95rem; color: #6b7280; margin-bottom: 1.75rem; line-height: 1.5; }
     .card { background: #fff; border-radius: 12px; padding: 1.75rem; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 1.25rem; }
-    label { display: block; font-size: .875rem; font-weight: 600; margin-bottom: .4rem; color: #374151; }
-    .file-wrap {
-      display: block; width: 100%; padding: .75rem 1rem;
-      border: 1.5px dashed #bbb; border-radius: 8px;
-      background: #fafafa; cursor: pointer; font-size: .875rem;
-      transition: border-color .15s;
+
+    /* ── File picker ── */
+    label.field-label { display: block; font-size: .875rem; font-weight: 600; margin-bottom: .4rem; color: #374151; }
+    .file-zone {
+      display: flex; align-items: center; gap: .75rem; width: 100%; padding: .75rem 1rem;
+      border: 1.5px dashed #bbb; border-radius: 8px; background: #fafafa;
+      cursor: pointer; transition: border-color .15s;
     }
-    .file-wrap:hover { border-color: #4f6ef7; }
+    .file-zone:hover { border-color: #4f6ef7; }
     input[type="file"] { display: none; }
-    .file-label-text { color: #6b7280; }
-    .file-label-text.chosen { color: #111; font-weight: 600; }
-    .field { margin-bottom: 1.4rem; }
-    button {
+    .file-icon { font-size: 1.3rem; flex-shrink: 0; }
+    .file-name { font-size: .875rem; color: #6b7280; }
+    .file-name.chosen { color: #111; font-weight: 600; }
+    .field { margin-bottom: 1.1rem; }
+
+    /* ── Inputs ── */
+    input[type="text"], input[type="email"], input[type="tel"], select {
+      display: block; width: 100%; padding: .55rem .75rem;
+      border: 1.5px solid #d1d5db; border-radius: 6px; font-size: .9rem;
+      outline: none; transition: border-color .15s; background: #fff; color: #111;
+    }
+    input:focus, select:focus { border-color: #4f6ef7; }
+    input.missing, select.missing { border-color: #f87171; background: #fff5f5; }
+    .missing-hint { font-size: .78rem; color: #dc2626; margin-top: .3rem; display: none; }
+    .missing-hint.show { display: block; }
+
+    /* ── Buttons ── */
+    .btn-primary {
       width: 100%; padding: .75rem; background: #4f6ef7; color: #fff;
       font-size: 1rem; font-weight: 600; border: none; border-radius: 8px;
       cursor: pointer; transition: background .15s;
     }
-    button:hover:not(:disabled) { background: #3a57e8; }
-    button:disabled { background: #a0aec0; cursor: not-allowed; }
+    .btn-primary:hover:not(:disabled) { background: #3a57e8; }
+    .btn-primary:disabled { background: #a0aec0; cursor: not-allowed; }
+    .btn-secondary {
+      width: 100%; padding: .6rem; background: #f3f4f6; color: #374151;
+      font-size: .9rem; font-weight: 600; border: 1.5px solid #d1d5db;
+      border-radius: 8px; cursor: pointer; transition: background .15s; margin-bottom: .75rem;
+    }
+    .btn-secondary:hover { background: #e5e7eb; }
+
+    /* ── Spinner ── */
     .spinner {
       display: inline-block; width: 1rem; height: 1rem;
       border: 2px solid rgba(255,255,255,.4); border-top-color: #fff;
@@ -37,29 +60,42 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* result cards */
-    .result-card { border-radius: 12px; padding: 1.5rem 1.75rem; display: none; margin-bottom: 1.25rem; }
-    .result-card.added {
-      background: #f0fdf4; border: 1.5px solid #86efac;
-    }
-    .result-card.duplicate {
-      background: #f0f9ff; border: 1.5px solid #bae6fd;
-    }
-    .result-card.failed {
-      background: #fff1f2; border: 1.5px solid #fca5a5;
-    }
-    .result-icon { font-size: 2rem; margin-bottom: .6rem; }
-    .result-title { font-size: 1rem; font-weight: 700; margin-bottom: .4rem; }
-    .result-card.added    .result-title { color: #15803d; }
+    /* ── Step tracker ── */
+    .steps { display: flex; gap: .5rem; align-items: center; margin-bottom: 1.5rem; }
+    .step { font-size: .8rem; font-weight: 600; padding: .2rem .65rem; border-radius: 999px; }
+    .step.active  { background: #4f6ef7; color: #fff; }
+    .step.done    { background: #d1fae5; color: #065f46; }
+    .step.pending { background: #f3f4f6; color: #9ca3af; }
+    .step-sep { color: #d1d5db; font-size: .7rem; }
+
+    /* ── Result cards ── */
+    .result-card { border-radius: 12px; padding: 1.5rem 1.75rem; margin-bottom: 1.25rem; }
+    .result-card.added     { background: #f0fdf4; border: 1.5px solid #86efac; }
+    .result-card.duplicate { background: #f0f9ff; border: 1.5px solid #bae6fd; }
+    .result-card.failed    { background: #fff1f2; border: 1.5px solid #fca5a5; }
+    .result-icon  { font-size: 1.75rem; margin-bottom: .5rem; }
+    .result-title { font-size: 1rem; font-weight: 700; margin-bottom: .35rem; }
+    .result-card.added     .result-title { color: #15803d; }
     .result-card.duplicate .result-title { color: #0369a1; }
     .result-card.failed    .result-title { color: #b91c1c; }
     .result-body { font-size: .9rem; line-height: 1.55; color: #374151; }
-    .result-meta { font-size: .78rem; color: #9ca3af; margin-top: .75rem; }
+    .result-meta { font-size: .78rem; color: #9ca3af; margin-top: .65rem; }
 
-    .note {
-      font-size: .8rem; color: #9ca3af; line-height: 1.55;
-      border-top: 1px solid #e5e7eb; padding-top: 1rem; margin-top: .5rem;
-    }
+    /* ── Availability badge in result ── */
+    .avail-badge { display: inline-block; padding: .15rem .6rem; border-radius: 999px; font-size: .78rem; font-weight: 700; margin-top: .5rem; }
+    .avail-available  { background: #dcfce7; color: #15803d; }
+    .avail-open       { background: #dbeafe; color: #1d4ed8; }
+    .avail-not_looking { background: #fee2e2; color: #b91c1c; }
+
+    /* ── Note ── */
+    .note { font-size: .8rem; color: #9ca3af; line-height: 1.55; border-top: 1px solid #e5e7eb; padding-top: 1rem; margin-top: .5rem; }
+
+    /* ── Section divider ── */
+    .form-section-title { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #9ca3af; margin-bottom: .75rem; margin-top: 1.25rem; }
+    .form-section-title:first-child { margin-top: 0; }
+
+    /* ── Hidden util ── */
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
@@ -70,21 +106,101 @@
       Subí tu CV una vez y listo.
     </p>
 
-    <div class="card">
-      <form id="form">
+    <!-- Step tracker -->
+    <div class="steps" id="stepTracker">
+      <span class="step active" id="s1">1 Subir PDF</span>
+      <span class="step-sep">›</span>
+      <span class="step pending" id="s2">2 Confirmar datos</span>
+      <span class="step-sep">›</span>
+      <span class="step pending" id="s3">3 Listo</span>
+    </div>
+
+    <!-- ═══════════════════════════════ STEP 1 ═══════════════════════════════ -->
+    <div class="card" id="step1Card">
+      <label class="field-label">Tu CV (PDF)</label>
+      <label class="file-zone" id="fileZone">
+        <span class="file-icon">📄</span>
+        <span class="file-name" id="fileNameLabel">Elegir archivo…</span>
+        <input id="fileInput" type="file" accept=".pdf" />
+      </label>
+      <div style="margin-top:1.25rem">
+        <button class="btn-primary" id="continueBtn" disabled>Continuar →</button>
+      </div>
+      <p id="step1Status" style="font-size:.85rem;color:#9ca3af;margin-top:.6rem;min-height:1.1rem"></p>
+    </div>
+
+    <!-- ═══════════════════════════════ STEP 2 ═══════════════════════════════ -->
+    <div class="card hidden" id="step2Card">
+      <p style="font-size:.88rem;color:#6b7280;margin-bottom:1.25rem">
+        Revisá y completá tus datos de contacto antes de confirmar.
+        Los campos marcados en rojo son obligatorios.
+      </p>
+
+      <form id="contactForm">
+
+        <p class="form-section-title">Identidad</p>
+
         <div class="field">
-          <label>Tu CV (PDF)</label>
-          <label class="file-wrap" id="fileWrap">
-            <span class="file-label-text" id="fileLabel">Elegir archivo…</span>
-            <input id="fileInput" type="file" accept=".pdf" required />
-          </label>
+          <label class="field-label" for="fName">Nombre completo *</label>
+          <input id="fName" type="text" placeholder="Ej: Santiago Gómez" />
+          <p class="missing-hint" id="hintName">Por favor completá este campo.</p>
         </div>
-        <button id="btn" type="submit">Subir mi CV</button>
+
+        <p class="form-section-title">Contacto</p>
+
+        <div class="field">
+          <label class="field-label" for="fEmail">Email *</label>
+          <input id="fEmail" type="email" placeholder="tu@email.com" />
+          <p class="missing-hint" id="hintEmail">Por favor completá este campo.</p>
+        </div>
+        <div class="field">
+          <label class="field-label" for="fPhone">Teléfono / WhatsApp</label>
+          <input id="fPhone" type="tel" placeholder="+54 9 11 1234-5678" />
+        </div>
+        <div class="field">
+          <label class="field-label" for="fLocation">Ubicación</label>
+          <input id="fLocation" type="text" placeholder="Ej: Buenos Aires, Argentina" />
+        </div>
+
+        <p class="form-section-title">Perfiles online</p>
+
+        <div class="field">
+          <label class="field-label" for="fLinkedin">LinkedIn</label>
+          <input id="fLinkedin" type="text" placeholder="https://linkedin.com/in/tu-perfil" />
+        </div>
+        <div class="field">
+          <label class="field-label" for="fGithub">GitHub</label>
+          <input id="fGithub" type="text" placeholder="https://github.com/tu-usuario" />
+        </div>
+        <div class="field">
+          <label class="field-label" for="fPortfolio">Portfolio / sitio web</label>
+          <input id="fPortfolio" type="text" placeholder="https://tusitio.com" />
+        </div>
+
+        <p class="form-section-title">Disponibilidad *</p>
+
+        <div class="field">
+          <select id="fAvail">
+            <option value="">— Seleccioná tu situación —</option>
+            <option value="available">Estoy buscando activamente</option>
+            <option value="open">Estoy abierto/a a oportunidades</option>
+            <option value="not_looking">No estoy buscando por ahora</option>
+          </select>
+          <p class="missing-hint" id="hintAvail">Por favor seleccioná una opción.</p>
+        </div>
+
+        <div style="margin-top:1.5rem">
+          <button type="submit" class="btn-primary" id="submitBtn">Subir mi CV</button>
+          <button type="button" class="btn-secondary" id="backBtn" style="margin-top:.5rem">
+            ← Elegir otro archivo
+          </button>
+        </div>
+        <p id="step2Status" style="font-size:.85rem;color:#9ca3af;margin-top:.6rem;min-height:1.1rem"></p>
       </form>
     </div>
 
-    <!-- added -->
-    <div id="resAdded" class="result-card added">
+    <!-- ═══════════════════════════════ RESULTS ══════════════════════════════ -->
+    <div id="resAdded" class="result-card added hidden">
       <div class="result-icon">✅</div>
       <div class="result-title">¡Tu CV está en el banco!</div>
       <div class="result-body">
@@ -93,8 +209,7 @@
       <div class="result-meta" id="metaAdded"></div>
     </div>
 
-    <!-- duplicate -->
-    <div id="resDuplicate" class="result-card duplicate">
+    <div id="resDuplicate" class="result-card duplicate hidden">
       <div class="result-icon">ℹ️</div>
       <div class="result-title">Tu CV ya está en el banco</div>
       <div class="result-body">
@@ -103,8 +218,7 @@
       <div class="result-meta" id="metaDuplicate"></div>
     </div>
 
-    <!-- failed -->
-    <div id="resFailed" class="result-card failed">
+    <div id="resFailed" class="result-card failed hidden">
       <div class="result-icon">⚠️</div>
       <div class="result-title">No pudimos procesar el archivo</div>
       <div class="result-body" id="failedMsg"></div>
@@ -117,36 +231,147 @@
   </div>
 
   <script>
-    const fileInput = document.getElementById('fileInput');
-    const fileLabel = document.getElementById('fileLabel');
+    // ─── State ────────────────────────────────────────────────────────────────
+    let _hash       = '';
+    let _fileInput  = document.getElementById('fileInput');
 
-    fileInput.addEventListener('change', () => {
-      const f = fileInput.files[0];
-      fileLabel.textContent = f ? f.name : 'Elegir archivo…';
-      fileLabel.className = f ? 'file-label-text chosen' : 'file-label-text';
-      hideAll();
+    const AVAIL_LABELS = {
+      available:   'Buscando activamente',
+      open:        'Abierto/a a oportunidades',
+      not_looking: 'No está buscando',
+    };
+
+    // ─── Step 1 — file picker ─────────────────────────────────────────────────
+    _fileInput.addEventListener('change', () => {
+      const f = _fileInput.files[0];
+      const label = document.getElementById('fileNameLabel');
+      label.textContent = f ? f.name : 'Elegir archivo…';
+      label.className = f ? 'file-name chosen' : 'file-name';
+      document.getElementById('continueBtn').disabled = !f;
+      document.getElementById('step1Status').textContent = '';
     });
 
-    document.getElementById('form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const f = fileInput.files[0];
+    document.getElementById('continueBtn').addEventListener('click', async () => {
+      const f = _fileInput.files[0];
       if (!f) return;
+      setStep1Status('Analizando tu CV…');
+      document.getElementById('continueBtn').disabled = true;
 
-      const btn = document.getElementById('btn');
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span>Subiendo…';
-      hideAll();
-
-      const formData = new FormData();
-      formData.append('file', f);
+      const fd = new FormData();
+      fd.append('file', f);
 
       try {
-        const res  = await fetch('/cvs/batch', { method: 'POST', body: formData });
+        const res  = await fetch('/cvs/extract-contact', { method: 'POST', body: fd });
         const data = await res.json();
 
+        if (!res.ok) {
+          setStep1Status(data.detail || 'Error al analizar el PDF.', true);
+          document.getElementById('continueBtn').disabled = false;
+          return;
+        }
+
+        _hash = data.extracted_text_hash;
+        prefillForm(data.extracted_contact, data.missing_fields);
+        goToStep(2);
+      } catch (err) {
+        setStep1Status(`Error de red: ${err.message}`, true);
+        document.getElementById('continueBtn').disabled = false;
+      }
+    });
+
+    // ─── Step 2 — contact form ────────────────────────────────────────────────
+    function prefillForm(contact, missingFields) {
+      const set = (id, val) => { if (val) document.getElementById(id).value = val; };
+      set('fName',      contact.full_name);
+      set('fEmail',     contact.email);
+      set('fPhone',     contact.phone);
+      set('fLocation',  contact.location);
+      set('fLinkedin',  contact.linkedin_url);
+      set('fGithub',    contact.github_url);
+      set('fPortfolio', contact.portfolio_url);
+      if (contact.availability) document.getElementById('fAvail').value = contact.availability;
+
+      // Highlight missing critical fields
+      const missingSet = new Set(missingFields);
+      applyMissing('fName',  'hintName',  missingSet.has('full_name'));
+      applyMissing('fEmail', 'hintEmail', missingSet.has('email'));
+      applyMissing('fAvail', 'hintAvail', missingSet.has('availability'));
+    }
+
+    function applyMissing(inputId, hintId, isMissing) {
+      document.getElementById(inputId).classList.toggle('missing', isMissing);
+      document.getElementById(hintId).classList.toggle('show', isMissing);
+    }
+
+    // Clear missing highlight on input
+    ['fName','fEmail','fAvail'].forEach(id => {
+      document.getElementById(id).addEventListener('input', () => {
+        document.getElementById(id).classList.remove('missing');
+      });
+      document.getElementById(id).addEventListener('change', () => {
+        document.getElementById(id).classList.remove('missing');
+      });
+    });
+
+    document.getElementById('backBtn').addEventListener('click', () => {
+      _hash = '';
+      _fileInput.value = '';
+      document.getElementById('fileNameLabel').textContent = 'Elegir archivo…';
+      document.getElementById('fileNameLabel').className = 'file-name';
+      document.getElementById('continueBtn').disabled = true;
+      document.getElementById('step1Status').textContent = '';
+      goToStep(1);
+    });
+
+    document.getElementById('contactForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      // Validate required fields
+      const name  = document.getElementById('fName').value.trim();
+      const email = document.getElementById('fEmail').value.trim();
+      const avail = document.getElementById('fAvail').value;
+      let hasError = false;
+
+      applyMissing('fName',  'hintName',  !name);
+      applyMissing('fEmail', 'hintEmail', !email);
+      applyMissing('fAvail', 'hintAvail', !avail);
+      if (!name || !email || !avail) { hasError = true; }
+
+      if (hasError) {
+        setStep2Status('Completá los campos obligatorios antes de continuar.', true);
+        return;
+      }
+
+      const contactPayload = {
+        full_name:     name   || null,
+        email:         email  || null,
+        phone:         document.getElementById('fPhone').value.trim()     || null,
+        location:      document.getElementById('fLocation').value.trim()  || null,
+        linkedin_url:  document.getElementById('fLinkedin').value.trim()  || null,
+        github_url:    document.getElementById('fGithub').value.trim()    || null,
+        portfolio_url: document.getElementById('fPortfolio').value.trim() || null,
+        availability:  avail  || null,
+      };
+
+      setStep2Status('Guardando tu CV…');
+      document.getElementById('submitBtn').disabled = true;
+
+      const fd = new FormData();
+      fd.append('file',          _fileInput.files[0]);
+      fd.append('contact_info',  JSON.stringify(contactPayload));
+      fd.append('expected_hash', _hash);
+
+      try {
+        const res  = await fetch('/cvs/batch', { method: 'POST', body: fd });
+        const data = await res.json();
+
+        goToStep(3);
         if (data.status === 'added') {
-          document.getElementById('metaAdded').textContent =
-            `Archivo: ${data.filename}  ·  ID: ${data.cv_id}`;
+          document.getElementById('metaAdded').innerHTML =
+            `Archivo: ${esc(data.filename)} · ID: ${esc(data.cv_id)}`
+            + (contactPayload.availability
+              ? `<br><span class="avail-badge avail-${contactPayload.availability}">${esc(AVAIL_LABELS[contactPayload.availability])}</span>`
+              : '');
           show('resAdded');
         } else if (data.status === 'duplicate') {
           document.getElementById('metaDuplicate').textContent =
@@ -158,22 +383,48 @@
           show('resFailed');
         }
       } catch (err) {
-        document.getElementById('failedMsg').textContent =
-          `Error de red: ${err.message}`;
+        goToStep(3);
+        document.getElementById('failedMsg').textContent = `Error de red: ${err.message}`;
         show('resFailed');
       } finally {
-        btn.disabled = false;
-        btn.textContent = 'Subir mi CV';
+        document.getElementById('submitBtn').disabled = false;
       }
     });
 
-    function show(id) {
-      document.getElementById(id).style.display = 'block';
+    // ─── Navigation helpers ───────────────────────────────────────────────────
+    function goToStep(n) {
+      document.getElementById('step1Card').classList.toggle('hidden', n !== 1);
+      document.getElementById('step2Card').classList.toggle('hidden', n !== 2);
+      ['resAdded','resDuplicate','resFailed'].forEach(id => {
+        if (n !== 3) document.getElementById(id).classList.add('hidden');
+      });
+
+      ['s1','s2','s3'].forEach((id, i) => {
+        const el = document.getElementById(id);
+        if (i + 1 < n)      el.className = 'step done';
+        else if (i + 1 === n) el.className = 'step active';
+        else                  el.className = 'step pending';
+      });
     }
-    function hideAll() {
-      ['resAdded', 'resDuplicate', 'resFailed'].forEach(id =>
-        document.getElementById(id).style.display = 'none'
-      );
+
+    function show(id) {
+      document.getElementById(id).classList.remove('hidden');
+    }
+
+    function setStep1Status(msg, isError = false) {
+      const el = document.getElementById('step1Status');
+      el.textContent = msg;
+      el.style.color = isError ? '#dc2626' : '#9ca3af';
+    }
+
+    function setStep2Status(msg, isError = false) {
+      const el = document.getElementById('step2Status');
+      el.textContent = msg;
+      el.style.color = isError ? '#dc2626' : '#9ca3af';
+    }
+
+    function esc(str) {
+      return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
   </script>
 </body>

@@ -28,6 +28,8 @@ from core.models.response import (
     CandidateRanking,
     CandidateRankingWithSource,
     CategoryInfo,
+    ContactInfo,
+    ContactOverride,
 )
 from core.models.tiebreaker import (
     AnswerInput,
@@ -41,6 +43,7 @@ from core.models.tiebreaker import (
 )
 from core.services import vector_service
 from core.services.category_service import get_or_create_category
+from core.services.contact_service import extract_contact_info
 from core.services.cv_bank_service import ingest_cv, update_bank_cv_seen
 from core.services.embedding_service import compute_text_hash, generate_embedding
 from core.services.llm_service import client as llm_client
@@ -106,6 +109,30 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 class FeedbackRequest(BaseModel):
     rating: int = Field(ge=1, le=5)
+
+
+# ── Shared helpers ─ contact ──────────────────────────────────────────────────
+
+def _build_contact(cv) -> ContactInfo | None:
+    """Build a ContactInfo response object from a CV ORM row.
+
+    Returns None if the CV has no contact info at all (all fields null).
+    """
+    if cv is None:
+        return None
+    info = ContactInfo(
+        full_name=cv.full_name,
+        email=cv.email,
+        phone=cv.phone,
+        linkedin_url=cv.linkedin_url,
+        github_url=cv.github_url,
+        portfolio_url=cv.portfolio_url,
+        location=cv.location,
+        availability=cv.availability,
+    )
+    if all(v is None for v in info.model_dump().values()):
+        return None
+    return info
 
 
 class MatchJobRequest(BaseModel):
@@ -348,6 +375,10 @@ async def analyze(
     except Exception:
         pass
 
+    # 10. Attach contact info from CV rows to ranking entries.
+    for candidate in enriched:
+        candidate.contact = _build_contact(filename_to_cv.get(candidate.filename))
+
     return AnalyzeResponse(
         analysis_id=analysis.id,
         ranking=enriched,
@@ -357,23 +388,56 @@ async def analyze(
     )
 
 
-# ── Candidate CV upload (single file, candidate-facing) ──────────────────────
+# ── Candidate upload — Step 1: extract contact info (no DB write) ─────────────
+
+CRITICAL_CONTACT_FIELDS = {"full_name", "email", "availability"}
+
+@app.post("/cvs/extract-contact")
+async def extract_cv_contact(
+    file: Annotated[UploadFile, File(description="PDF to extract contact info from")],
+):
+    """Extract contact info from a PDF without saving anything.
+
+    Returns the extracted fields plus a list of critical missing fields so
+    the UI can prompt the candidate to fill them before final upload.
+    """
+    fname = file.filename or "cv.pdf"
+    try:
+        raw = await file.read()
+        text = extract_text(raw)
+    except Exception:
+        raise HTTPException(400, "El archivo no es un PDF válido.")
+
+    if not text.strip():
+        raise HTTPException(422, "No se pudo extraer texto. ¿Es un PDF escaneado?")
+
+    text_hash = compute_text_hash(text)
+    contact   = await extract_contact_info(text)
+
+    missing = [f for f in CRITICAL_CONTACT_FIELDS if not contact.get(f)]
+
+    return {
+        "extracted_text_hash": text_hash,
+        "extracted_contact":   contact,
+        "missing_fields":      missing,
+        "filename":            fname,
+    }
+
+
+# ── Candidate upload — Step 2: save with confirmed contact info ───────────────
 
 @app.post("/cvs/batch")
 async def upload_candidate_cv(
     file: Annotated[UploadFile, File(description="Candidate's CV in PDF format")],
+    contact_info: Annotated[str, Form(description="JSON contact fields")] = "{}",
+    expected_hash: Annotated[str, Form(description="Hash from extract-contact step")] = "",
     db: AsyncSession = Depends(get_db),
 ):
+    import json as _json
+
     fname = file.filename or "cv.pdf"
     try:
-        raw = await file.read()
-    except Exception:
-        return JSONResponse(status_code=400, content={
-            "status": "failed", "filename": fname, "cv_id": None,
-            "message": "No se pudo leer el archivo.",
-        })
-
-    try:
+        raw  = await file.read()
         text = extract_text(raw)
     except Exception:
         return JSONResponse(status_code=400, content={
@@ -384,12 +448,30 @@ async def upload_candidate_cv(
     if not text.strip():
         return JSONResponse(status_code=400, content={
             "status": "failed", "filename": fname, "cv_id": None,
-            "message": "No se pudo extraer texto del PDF. "
-                       "Asegurate de que no esté escaneado como imagen.",
+            "message": "No se pudo extraer texto del PDF.",
         })
 
+    # Hash verification — ensures the uploaded file matches the extraction step.
+    actual_hash = compute_text_hash(text)
+    if expected_hash and actual_hash != expected_hash:
+        return JSONResponse(status_code=409, content={
+            "status": "failed", "filename": fname, "cv_id": None,
+            "message": "El archivo no coincide con el CV analizado. "
+                       "Por favor volvé al paso anterior.",
+        })
+
+    # Parse and validate contact info supplied by the candidate.
+    contact_override: dict | None = None
     try:
-        cv, is_new = await ingest_cv(db, fname, text)
+        raw_contact = _json.loads(contact_info) if contact_info.strip() else {}
+        if raw_contact:
+            validated = ContactOverride.model_validate(raw_contact)
+            contact_override = validated.model_dump(exclude_none=True) or None
+    except Exception:
+        pass  # bad JSON → fall through to LLM extraction inside ingest_cv
+
+    try:
+        cv, is_new = await ingest_cv(db, fname, text, contact_override=contact_override)
         await db.commit()
     except Exception as exc:
         import logging
@@ -449,7 +531,9 @@ async def match_job(
     for candidate in result.ranking:
         bank_cv = bank_cv_by_filename.get(candidate.filename)
         factor = compute_recency_factor(bank_cv.created_at) if bank_cv else 1.0
-        enriched.append(_enrich_candidate(candidate, "bank", factor))
+        c = _enrich_candidate(candidate, "bank", factor)
+        c.contact = _build_contact(bank_cv)
+        enriched.append(c)
 
     enriched.sort(key=lambda c: c.score, reverse=True)
 

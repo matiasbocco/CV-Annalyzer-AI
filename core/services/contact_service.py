@@ -46,6 +46,17 @@ Rules:
 """
 
 
+_URL_FIELDS = ("linkedin_url", "github_url", "portfolio_url")
+
+
+def _normalize_urls(raw: dict) -> None:
+    """Prepend https:// to URL fields that the LLM returned without a scheme."""
+    for field in _URL_FIELDS:
+        v = raw.get(field)
+        if isinstance(v, str) and v and "://" not in v:
+            raw[field] = "https://" + v
+
+
 def _url_to_str(value) -> Optional[str]:
     """Convert a Pydantic HttpUrl (or None) to a plain string."""
     if value is None:
@@ -85,6 +96,8 @@ async def extract_contact_info(cv_text: str) -> dict:
     except Exception as exc:
         log.warning("extract_contact_info LLM call failed: %s", exc)
         return {}
+
+    _normalize_urls(raw)
 
     try:
         parsed = ContactExtraction.model_validate(raw)

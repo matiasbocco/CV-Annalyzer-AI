@@ -42,6 +42,7 @@ async def ingest_cv(
     db: AsyncSession,
     filename: str,
     text_content: str,
+    contact_override: dict | None = None,
 ) -> tuple[CV, bool]:
     """Add a CV to the bank, or update it if the content already exists.
 
@@ -73,7 +74,10 @@ async def ingest_cv(
 
         # Backfill contact info for CVs that predate this feature.
         if existing.contact_extracted_at is None:
-            await _extract_and_apply_contact(existing, text_content)
+            if contact_override:
+                _apply_contact_dict(existing, contact_override)
+            else:
+                await _extract_and_apply_contact(existing, text_content)
 
         return existing, False
 
@@ -120,10 +124,26 @@ async def ingest_cv(
             metadata,
         )
 
-    # Extract contact info for new CVs.
-    await _extract_and_apply_contact(cv, text_content)
+    # Extract contact info for new CVs (or use user-supplied override).
+    if contact_override:
+        _apply_contact_dict(cv, contact_override)
+    else:
+        await _extract_and_apply_contact(cv, text_content)
 
     return cv, True
+
+
+def _apply_contact_dict(cv: CV, contact: dict) -> None:
+    """Write contact dict fields onto a CV row and stamp the timestamp."""
+    cv.full_name            = contact.get("full_name")
+    cv.email                = contact.get("email")
+    cv.phone                = contact.get("phone")
+    cv.linkedin_url         = contact.get("linkedin_url")
+    cv.github_url           = contact.get("github_url")
+    cv.portfolio_url        = contact.get("portfolio_url")
+    cv.location             = contact.get("location")
+    cv.availability         = contact.get("availability")
+    cv.contact_extracted_at = datetime.now(timezone.utc)
 
 
 async def _extract_and_apply_contact(cv: CV, text_content: str) -> None:

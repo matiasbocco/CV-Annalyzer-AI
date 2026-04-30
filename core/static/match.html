@@ -69,6 +69,25 @@
     .list-recs li::before      { content: "✦"; color: #7c3aed; }
     .summary-text { font-size: .92rem; line-height: 1.6; color: #374151; font-style: italic; }
     .divider { border: none; border-top: 1px solid #f0f0f0; margin: 1.25rem 0; }
+    /* contact */
+    .contact-icons { font-size: .78rem; color: #9ca3af; margin-left: .35rem; }
+    .contact-section { margin: .85rem 0; padding: .85rem 1rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e5e7eb; }
+    .contact-section h3 { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: #9ca3af; margin-bottom: .6rem; }
+    .contact-grid { display: flex; flex-wrap: wrap; gap: .35rem .9rem; font-size: .85rem; color: #374151; margin-bottom: .7rem; }
+    .contact-item { display: flex; align-items: center; gap: .3rem; }
+    .contact-icon { font-size: .9rem; }
+    .avail-badge { display: inline-block; padding: .12rem .55rem; border-radius: 999px; font-size: .75rem; font-weight: 700; }
+    .avail-available   { background: #dcfce7; color: #15803d; }
+    .avail-open        { background: #dbeafe; color: #1d4ed8; }
+    .avail-not_looking { background: #fee2e2; color: #b91c1c; }
+    .contact-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .6rem; }
+    .action-btn {
+      display: inline-flex; align-items: center; gap: .3rem;
+      padding: .3rem .75rem; border-radius: 6px; font-size: .8rem; font-weight: 600;
+      border: 1.5px solid #d1d5db; background: #fff; color: #374151;
+      cursor: pointer; text-decoration: none; transition: background .12s, border-color .12s;
+    }
+    .action-btn:hover { background: #f3f4f6; border-color: #9ca3af; }
     details.card { padding: 0; overflow: hidden; }
     details summary { padding: 1rem 1.5rem; cursor: pointer; font-size: .875rem; font-weight: 600; color: #555; user-select: none; list-style: none; }
     details summary::-webkit-details-marker { display: none; }
@@ -207,10 +226,16 @@
         const recencyHtml = c.recency_factor_applied < 1.0
           ? `<span class="src-badge src-bank">${c.recency_factor_applied}×</span>`
           : '<span style="color:#9ca3af;font-size:.82rem">—</span>';
+        const displayName = c.contact?.full_name || c.filename;
+        const icons = [
+          c.contact?.email ? '✉' : '',
+          c.contact?.phone ? '📞' : '',
+        ].filter(Boolean).join(' ');
+        const iconsHtml = icons ? `<span class="contact-icons">${icons}</span>` : '';
         const tr = tbody.insertRow();
         tr.innerHTML = `
           <td class="pos">${ordinal(i + 1)}</td>
-          <td class="filename-cell">${esc(c.filename)}</td>
+          <td class="filename-cell">${esc(displayName)}${iconsHtml}</td>
           <td class="score-cell">${scoreHtml}</td>
           <td>${badge(c.nivel)}</td>
           <td>${recencyHtml}</td>
@@ -227,14 +252,20 @@
         const scoreNote = c.original_score != null
           ? `<span style="font-size:.82rem;color:#9ca3af">adjusted from ${c.original_score} · ${c.recency_factor_applied}× recency</span>`
           : '';
+        const hasName = c.contact?.full_name;
+        const headerName = hasName
+          ? `<span class="candidate-filename">${esc(c.contact.full_name)}</span>
+             <span style="font-size:.78rem;color:#9ca3af;font-family:monospace">${esc(c.filename)}</span>`
+          : `<span class="candidate-filename">${esc(c.filename)}</span>`;
         card.innerHTML = `
           <div class="candidate-header">
             <div class="candidate-score">${c.score}</div>
             <div class="candidate-meta">
-              <span class="candidate-filename">${esc(c.filename)}</span>
+              ${headerName}
               ${badge(c.nivel)} ${scoreNote}
             </div>
           </div>
+          ${renderContactSection(c.contact)}
           <div class="scores-grid">
             ${scoreBar('Technical Skills', c.detailed_scores.technical_skills)}
             ${scoreBar('Experience',       c.detailed_scores.experience)}
@@ -249,6 +280,39 @@
           <p class="summary-text">${esc(c.summary)}</p>
         `;
         container.appendChild(card);
+      });
+    }
+
+    function renderContactSection(contact) {
+      if (!contact) return '';
+      const availLabels = { available: 'Disponible', open: 'Abierto a oportunidades', not_looking: 'No busca trabajo' };
+      const items = [
+        contact.email    && `<span class="contact-item"><span class="contact-icon">✉</span>${esc(contact.email)}</span>`,
+        contact.phone    && `<span class="contact-item"><span class="contact-icon">📞</span>${esc(contact.phone)}</span>`,
+        contact.location && `<span class="contact-item"><span class="contact-icon">📍</span>${esc(contact.location)}</span>`,
+        contact.availability && `<span class="contact-item"><span class="avail-badge avail-${esc(contact.availability)}">${availLabels[contact.availability] ?? esc(contact.availability)}</span></span>`,
+      ].filter(Boolean);
+      const phoneDigits = contact.phone ? contact.phone.replace(/\D/g, '') : '';
+      const actions = [
+        contact.email         && `<a class="action-btn" href="#" data-email="${esc(contact.email)}" onclick="copyEmail(this);return false">✉ Copiar email</a>`,
+        contact.linkedin_url  && `<a class="action-btn" href="${esc(contact.linkedin_url)}" target="_blank" rel="noopener">in LinkedIn</a>`,
+        phoneDigits           && `<a class="action-btn" href="https://wa.me/${phoneDigits}" target="_blank" rel="noopener">📱 WhatsApp</a>`,
+        contact.portfolio_url && `<a class="action-btn" href="${esc(contact.portfolio_url)}" target="_blank" rel="noopener">🔗 Portfolio</a>`,
+      ].filter(Boolean);
+      if (!items.length && !actions.length) return '';
+      return `
+        <div class="contact-section">
+          <h3>Contacto</h3>
+          <div class="contact-grid">${items.join('')}</div>
+          ${actions.length ? `<div class="contact-actions">${actions.join('')}</div>` : ''}
+        </div>`;
+    }
+
+    function copyEmail(btn) {
+      navigator.clipboard.writeText(btn.dataset.email).then(() => {
+        const orig = btn.textContent;
+        btn.textContent = '✓ Copiado';
+        setTimeout(() => btn.textContent = orig, 2000);
       });
     }
 

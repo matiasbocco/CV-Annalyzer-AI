@@ -64,6 +64,7 @@ class CandidateRankingWithSource(BaseModel):
     summary: str
     source: str                           # "uploaded" | "bank"
     recency_factor_applied: float = 1.0
+    contact: Optional["ContactInfo"] = None
 
 
 class RankingResponse(BaseModel):
@@ -82,7 +83,7 @@ class CategoryInfo(BaseModel):
 
 
 class ContactExtraction(BaseModel):
-    """LLM-extracted contact info from a CV. All fields optional."""
+    """LLM-extracted contact info — strict validation for LLM output."""
     full_name: Optional[str] = None
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
@@ -91,6 +92,39 @@ class ContactExtraction(BaseModel):
     portfolio_url: Optional[HttpUrl] = None
     location: Optional[str] = None
     availability: Optional[Literal["available", "open", "not_looking"]] = None
+
+
+class ContactOverride(BaseModel):
+    """User-supplied contact info from the upload form — permissive strings."""
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    github_url: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    location: Optional[str] = None
+    availability: Optional[Literal["available", "open", "not_looking"]] = None
+
+    @model_validator(mode="after")
+    def normalize_empty(self) -> "ContactOverride":
+        """Convert whitespace-only strings to None."""
+        for field in self.model_fields:
+            v = getattr(self, field)
+            if isinstance(v, str) and not v.strip():
+                setattr(self, field, None)
+        return self
+
+
+class ContactInfo(BaseModel):
+    """Contact info as returned in API responses — plain strings, no validation."""
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    github_url: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    location: Optional[str] = None
+    availability: Optional[str] = None
 
 
 class AnalyzeResponse(BaseModel):
