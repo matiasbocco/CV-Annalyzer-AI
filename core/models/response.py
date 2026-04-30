@@ -1,8 +1,8 @@
 import uuid
 from enum import Enum
-from typing import Optional
+from typing import Literal, Optional
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, EmailStr, Field, HttpUrl, model_validator
 
 
 class Nivel(str, Enum):
@@ -79,6 +79,18 @@ class RankingResponse(BaseModel):
 class CategoryInfo(BaseModel):
     slug: str
     display_name: str
+
+
+class ContactExtraction(BaseModel):
+    """LLM-extracted contact info from a CV. All fields optional."""
+    full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    linkedin_url: Optional[HttpUrl] = None
+    github_url: Optional[HttpUrl] = None
+    portfolio_url: Optional[HttpUrl] = None
+    location: Optional[str] = None
+    availability: Optional[Literal["available", "open", "not_looking"]] = None
 
 
 class AnalyzeResponse(BaseModel):

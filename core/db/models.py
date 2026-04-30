@@ -55,6 +55,20 @@ class CV(Base):
         DateTime, server_default=func.now(), nullable=False
     )
 
+    # ── Contact information (extracted via LLM on ingest) ─────────────────
+    full_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    linkedin_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    github_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    portfolio_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    location: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    # "available" | "open" | "not_looking" | null (unknown/not stated)
+    availability: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    contact_extracted_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=True
+    )
+
 
 class CVAnalysis(Base):
     """Per-job scores for a CV.  Many-to-many between cvs and analyses.

@@ -32,6 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.db.models import CV
 from core.services import vector_service
+from core.services.contact_service import extract_contact_info
 from core.services.embedding_service import compute_text_hash, generate_embedding
 
 log = logging.getLogger(__name__)
@@ -69,6 +70,11 @@ async def ingest_cv(
                 "is_expired": False,
             },
         )
+
+        # Backfill contact info for CVs that predate this feature.
+        if existing.contact_extracted_at is None:
+            await _extract_and_apply_contact(existing, text_content)
+
         return existing, False
 
     # New CV — generate embedding.
@@ -114,7 +120,37 @@ async def ingest_cv(
             metadata,
         )
 
+    # Extract contact info for new CVs.
+    await _extract_and_apply_contact(cv, text_content)
+
     return cv, True
+
+
+async def _extract_and_apply_contact(cv: CV, text_content: str) -> None:
+    """Call the contact extraction LLM and write results back to the CV row.
+
+    Best-effort: any failure is logged and silently ignored so callers are
+    never blocked by a contact-extraction error.
+    """
+    try:
+        contact = await extract_contact_info(text_content)
+        if not contact:
+            return
+        cv.full_name             = contact.get("full_name")
+        cv.email                 = contact.get("email")
+        cv.phone                 = contact.get("phone")
+        cv.linkedin_url          = contact.get("linkedin_url")
+        cv.github_url            = contact.get("github_url")
+        cv.portfolio_url         = contact.get("portfolio_url")
+        cv.location              = contact.get("location")
+        cv.availability          = contact.get("availability")
+        cv.contact_extracted_at  = datetime.now(timezone.utc)
+    except Exception as exc:
+        log.warning(
+            "Contact extraction failed for CV '%s': %s",
+            getattr(cv, "filename", "?"),
+            exc,
+        )
 
 
 async def update_bank_cv_seen(db: AsyncSession, cv: CV) -> None:
