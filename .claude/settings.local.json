@@ -18,7 +18,10 @@
       "Bash(./venv/Scripts/python -m core.scripts.debug_bank)",
       "Bash(./venv/Scripts/pip install *)",
       "Bash(./venv/Scripts/python -c \"import chromadb; print\\(chromadb.__version__\\)\")",
-      "Bash(./venv/Scripts/python -m core.scripts.rebuild_chroma)"
+      "Bash(./venv/Scripts/python -m core.scripts.rebuild_chroma)",
+      "Bash(./venv/Scripts/python -m alembic upgrade head)",
+      "Bash(./venv/Scripts/python -c ' *)",
+      "Bash(./venv/Scripts/python -m core.scripts.backfill_contact_info)"
     ]
   }
 }
