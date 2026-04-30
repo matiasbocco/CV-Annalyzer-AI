@@ -12,8 +12,10 @@
   "dependencies": {
     "@tanstack/react-query": "^5.100.6",
     "axios": "^1.15.2",
+    "clsx": "^2.1.1",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "react-dom": "^19.2.5",
+    "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
