@@ -132,3 +132,4 @@ class AnalyzeResponse(BaseModel):
     ranking: list[CandidateRankingWithSource]
     job_summary: str
     category: CategoryInfo | None = None
+    anonymized: bool = True

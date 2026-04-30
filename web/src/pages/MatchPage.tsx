@@ -74,6 +74,15 @@ export default function MatchPage() {
               </div>
             )}
 
+            {match.data.anonymized && (
+              <span
+                className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold px-3 py-1 rounded-full cursor-help w-fit"
+                title="Los datos de contacto fueron ocultados al modelo de IA durante la evaluación para evitar sesgos."
+              >
+                🔒 Evaluado sin datos personales
+              </span>
+            )}
+
             <RankingTable ranking={match.data.ranking} />
 
             <div className="space-y-4">

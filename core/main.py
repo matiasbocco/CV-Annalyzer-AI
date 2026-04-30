@@ -43,6 +43,7 @@ from core.models.tiebreaker import (
     TiebreakerSessionResponse,
 )
 from core.services import vector_service
+from core.services.anonymization_service import anonymize_cvs
 from core.services.category_service import get_or_create_category
 from core.services.contact_service import extract_contact_info
 from core.services.cv_bank_service import ingest_cv, update_bank_cv_seen
@@ -321,15 +322,28 @@ async def analyze(
         for cv in bank_cv_records
     ]
 
-    # 3. LLM ranking.
+    # 3. Anonymize CVs before the LLM call (PII stays in MySQL; labels are ephemeral).
+    all_for_anon = (
+        [{"filename": fn, "text": text, "source": "uploaded"} for fn, text in cvs]
+        + [{"filename": bk["filename"], "text": bk["text"], "source": "bank"} for bk in bank_cvs_for_llm]
+    )
+    anon_cvs, label_map = anonymize_cvs(all_for_anon)
+    anon_uploaded = [(c["filename"], c["text"]) for c in anon_cvs if c.get("source") == "uploaded"]
+    anon_bank     = [{"filename": c["filename"], "text": c["text"]} for c in anon_cvs if c.get("source") == "bank"]
+
+    # 4. LLM ranking (sees only neutral labels, no real filenames or PII).
     try:
-        result = await rank_candidates(job_description, cvs, bank_cvs=bank_cvs_for_llm or None)
+        result = await rank_candidates(job_description, anon_uploaded, bank_cvs=anon_bank or None)
     except ValidationError as e:
         raise HTTPException(502, {"message": "LLM returned malformed data", "errors": e.errors()})
     except OpenAIError as e:
         raise HTTPException(503, f"OpenAI unavailable: {e}")
 
-    # 4. Enrich ranking with source and recency factor; re-sort by adjusted score.
+    # Restore real filenames before any downstream processing.
+    for candidate in result.ranking:
+        candidate.filename = label_map.get(candidate.filename, candidate.filename)
+
+    # 5. Enrich ranking with source and recency factor; re-sort by adjusted score.
     uploaded_filenames = {fn for fn, _ in cvs}
     bank_cv_by_filename = {cv.filename: cv for cv in bank_cv_records}
 
@@ -344,21 +358,22 @@ async def analyze(
 
     enriched.sort(key=lambda c: c.score, reverse=True)
 
-    # 5. Classify job description (tolerant).
+    # 6. Classify job description (tolerant).
     category = await get_or_create_category(db, job_description, llm_client)
 
-    # 6. Persist Analysis row.
+    # 7. Persist Analysis row (ranking stores real filenames — labels are ephemeral).
     analysis = Analysis(
         job_description=job_description,
         ranking=[c.model_dump() for c in enriched],
         job_summary=result.job_summary,
         model_used=settings.openai_model,
         job_category_id=category.id if category else None,
+        anonymized=True,
     )
     db.add(analysis)
     await db.commit()
 
-    # 7. Ingest uploaded CVs into the bank (after commit — see module docstring).
+    # 8. Ingest uploaded CVs into the bank (after commit — see module docstring).
     filename_to_cv: dict[str, CV] = {}
     try:
         for filename, text in cvs:
@@ -369,7 +384,7 @@ async def analyze(
         import logging
         logging.getLogger(__name__).warning("CV bank ingestion failed: %s", exc)
 
-    # 8. Update bank CVs that were pulled into this analysis.
+    # 9. Update bank CVs that were pulled into this analysis.
     try:
         for bank_cv in bank_cv_records:
             filename_to_cv[bank_cv.filename] = bank_cv
@@ -378,13 +393,13 @@ async def analyze(
     except Exception:
         pass
 
-    # 9. Create per-candidate CVAnalysis rows (best-effort).
+    # 10. Create per-candidate CVAnalysis rows (best-effort).
     try:
         await _persist_cv_analyses(db, analysis.id, enriched, filename_to_cv)
     except Exception:
         pass
 
-    # 10. Attach contact info from CV rows to ranking entries.
+    # 11. Attach contact info from CV rows (never from LLM output — it saw no PII).
     for candidate in enriched:
         candidate.contact = _build_contact(filename_to_cv.get(candidate.filename))
 
@@ -394,6 +409,7 @@ async def analyze(
         job_summary=result.job_summary,
         category=CategoryInfo(slug=category.slug, display_name=category.display_name)
         if category else None,
+        anonymized=True,
     )
 
 
@@ -523,16 +539,26 @@ async def match_job(
         for cv in bank_cv_records
     ]
 
+    # Anonymize before the LLM call.
+    anon_cvs, label_map = anonymize_cvs(
+        [{"filename": bk["filename"], "text": bk["text"], "source": "bank"} for bk in bank_cvs_for_llm]
+    )
+    anon_bank = [{"filename": c["filename"], "text": c["text"]} for c in anon_cvs]
+
     try:
         result = await rank_candidates(
             body.job_description,
             uploaded_cvs=[],
-            bank_cvs=bank_cvs_for_llm,
+            bank_cvs=anon_bank,
         )
     except ValidationError as e:
         raise HTTPException(502, {"message": "LLM returned malformed data", "errors": e.errors()})
     except OpenAIError as e:
         raise HTTPException(503, f"OpenAI unavailable: {e}")
+
+    # Restore real filenames before downstream processing.
+    for candidate in result.ranking:
+        candidate.filename = label_map.get(candidate.filename, candidate.filename)
 
     bank_cv_by_filename = {cv.filename: cv for cv in bank_cv_records}
 
@@ -554,6 +580,7 @@ async def match_job(
         job_summary=result.job_summary,
         model_used=settings.openai_model,
         job_category_id=category.id if category else None,
+        anonymized=True,
     )
     db.add(analysis)
     await db.commit()
@@ -573,6 +600,7 @@ async def match_job(
         job_summary=result.job_summary,
         category=CategoryInfo(slug=category.slug, display_name=category.display_name)
         if category else None,
+        anonymized=True,
     )
 
 

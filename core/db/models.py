@@ -132,6 +132,7 @@ class Analysis(Base):
     job_category_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         Uuid, ForeignKey("job_categories.id"), nullable=True
     )
+    anonymized: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 

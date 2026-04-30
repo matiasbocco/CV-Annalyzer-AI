@@ -243,12 +243,22 @@ function ResultsView({
         <p className="text-sm text-gray-700 leading-relaxed">{data.job_summary}</p>
       </div>
 
-      {/* Category badge */}
-      {data.category && (
-        <span className="inline-flex items-center gap-1.5 bg-purple-100 text-purple-800 text-xs font-semibold px-3 py-1 rounded-full">
-          🏷 {data.category.display_name}
-        </span>
-      )}
+      {/* Category badge + anonymization notice */}
+      <div className="flex flex-wrap items-center gap-2">
+        {data.category && (
+          <span className="inline-flex items-center gap-1.5 bg-purple-100 text-purple-800 text-xs font-semibold px-3 py-1 rounded-full">
+            🏷 {data.category.display_name}
+          </span>
+        )}
+        {data.anonymized && (
+          <span
+            className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold px-3 py-1 rounded-full cursor-help"
+            title="Los datos de contacto fueron ocultados al modelo de IA durante la evaluación para evitar sesgos."
+          >
+            🔒 Evaluado sin datos personales
+          </span>
+        )}
+      </div>
 
       {/* Ranking table */}
       <RankingTable ranking={ranking} />

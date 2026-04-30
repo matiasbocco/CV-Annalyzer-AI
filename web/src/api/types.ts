@@ -65,6 +65,7 @@ export interface AnalyzeResponse {
   ranking: Candidate[]
   job_summary: string
   category: CategoryInfo | null
+  anonymized: boolean
 }
 
 /** /match-job returns the same shape as /analyze */

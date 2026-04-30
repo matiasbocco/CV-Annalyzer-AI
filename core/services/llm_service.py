@@ -26,6 +26,9 @@ from core.models.response import RankingResponse
 client = AsyncOpenAI(api_key=settings.openai_api_key)
 
 RANKING_SYSTEM_PROMPT = (
+    "Candidate filenames are anonymized labels (candidate_a, candidate_b, …) to prevent "
+    "evaluation bias. Evaluate purely on skills, experience, and education. "
+    "Return the exact anonymized label — unchanged — as the 'filename' field in your JSON output.\n\n"
     "You are an expert HR recruiter. You will receive a job description and "
     "MULTIPLE candidate CVs. Evaluate EVERY candidate (whether uploaded or "
     "from the bank) against the job description using the same criteria and "
