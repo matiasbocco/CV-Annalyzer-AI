@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useStartTiebreaker, useSubmitTiebreakerAnswers } from '../api/hooks'
+import { T, useLang } from '../LangContext'
 import type {
   Candidate,
   CandidateAdjustment,
@@ -55,6 +56,7 @@ function arrow(moved: number) {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function TiebreakerFlow({ analysisId, ranking, onComplete }: Props) {
+  const t = T[useLang()]
   const [phase, setPhase] = useState<Phase>({ tag: 'idle' })
   const [answers, setAnswers] = useState<Record<string, string>>({})
 
@@ -70,10 +72,7 @@ export default function TiebreakerFlow({ analysisId, ranking, onComplete }: Prop
     setPhase({ tag: 'loading' })
     startMutation.mutate(analysisId, {
       onSuccess(result) {
-        if (!result.needed) {
-          setPhase({ tag: 'hidden' })
-          return
-        }
+        if (!result.needed) { setPhase({ tag: 'hidden' }); return }
         setPhase({
           tag: 'questioning',
           sessionId: result.session_id,
@@ -81,9 +80,7 @@ export default function TiebreakerFlow({ analysisId, ranking, onComplete }: Prop
           cluster: result.cluster_candidates,
         })
       },
-      onError() {
-        setPhase({ tag: 'idle' })
-      },
+      onError() { setPhase({ tag: 'idle' }) },
     })
   }
 
@@ -114,16 +111,14 @@ export default function TiebreakerFlow({ analysisId, ranking, onComplete }: Prop
     return (
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold text-amber-800">Hay candidatos empatados</p>
-          <p className="text-xs text-amber-600 mt-0.5">
-            Dos o más candidatos tienen puntajes muy cercanos. Respondé algunas preguntas para afinar el ranking.
-          </p>
+          <p className="text-sm font-semibold text-amber-800">{t.tieTitle}</p>
+          <p className="text-xs text-amber-600 mt-0.5">{t.tieHint}</p>
         </div>
         <button
           onClick={handleStart}
           className="flex-shrink-0 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
         >
-          Desempatar
+          {t.tieBtn}
         </button>
       </div>
     )
@@ -135,7 +130,7 @@ export default function TiebreakerFlow({ analysisId, ranking, onComplete }: Prop
     return (
       <div className="bg-white border border-gray-200 rounded-lg p-4 flex items-center gap-3">
         <div className="w-5 h-5 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin flex-shrink-0" />
-        <p className="text-sm text-gray-600">Generando preguntas de desempate…</p>
+        <p className="text-sm text-gray-600">{t.tieLoadingQ}</p>
       </div>
     )
   }
@@ -148,15 +143,11 @@ export default function TiebreakerFlow({ analysisId, ranking, onComplete }: Prop
 
     return (
       <div className="bg-white border border-amber-200 rounded-lg p-5 space-y-5">
-        <p className="text-sm font-semibold text-gray-800">
-          Indicá qué aspectos son más importantes para este puesto:
-        </p>
+        <p className="text-sm font-semibold text-gray-800">{t.tiePrompt}</p>
 
         {questions.map((q, qi) => (
           <div key={q.id} className="space-y-2">
-            <p className="text-sm font-medium text-gray-700">
-              {qi + 1}. {q.text}
-            </p>
+            <p className="text-sm font-medium text-gray-700">{qi + 1}. {q.text}</p>
             <div className="space-y-1.5 pl-2">
               {q.options.map(opt => (
                 <label key={opt.id} className="flex items-start gap-2.5 cursor-pointer group">
@@ -168,9 +159,7 @@ export default function TiebreakerFlow({ analysisId, ranking, onComplete }: Prop
                     onChange={() => setAnswers(prev => ({ ...prev, [q.id]: opt.id }))}
                     className="mt-0.5 cursor-pointer"
                   />
-                  <span className="text-sm text-gray-700 group-hover:text-gray-900">
-                    {opt.text}
-                  </span>
+                  <span className="text-sm text-gray-700 group-hover:text-gray-900">{opt.text}</span>
                 </label>
               ))}
             </div>
@@ -182,7 +171,7 @@ export default function TiebreakerFlow({ analysisId, ranking, onComplete }: Prop
           disabled={!allAnswered}
           className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold py-2 rounded-lg text-sm transition-colors"
         >
-          Confirmar respuestas
+          {t.tieConfirm}
         </button>
       </div>
     )
@@ -194,7 +183,7 @@ export default function TiebreakerFlow({ analysisId, ranking, onComplete }: Prop
     return (
       <div className="bg-white border border-gray-200 rounded-lg p-4 flex items-center gap-3">
         <div className="w-5 h-5 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin flex-shrink-0" />
-        <p className="text-sm text-gray-600">Recalculando ranking…</p>
+        <p className="text-sm text-gray-600">{t.tieRecalc}</p>
       </div>
     )
   }
@@ -206,12 +195,10 @@ export default function TiebreakerFlow({ analysisId, ranking, onComplete }: Prop
 
     return (
       <div className="bg-white border border-green-200 rounded-lg p-5 space-y-4">
-        <p className="text-sm font-semibold text-green-800">Ranking de desempate listo</p>
+        <p className="text-sm font-semibold text-green-800">{t.tieDone}</p>
 
         {adjustments.filter(a => a.moved !== 0).length === 0 ? (
-          <p className="text-xs text-gray-500">
-            Sin cambios en el orden de los candidatos empatados.
-          </p>
+          <p className="text-xs text-gray-500">{t.tieNoChange}</p>
         ) : (
           <div className="space-y-1.5">
             {adjustments.map(a => {
@@ -233,7 +220,7 @@ export default function TiebreakerFlow({ analysisId, ranking, onComplete }: Prop
           onClick={() => onComplete(buildUpdatedRanking(ranking, finalRanking))}
           className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-lg text-sm transition-colors"
         >
-          Ver ranking actualizado
+          {t.tieView}
         </button>
       </div>
     )

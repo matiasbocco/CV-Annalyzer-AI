@@ -1,18 +1,21 @@
 import { cn, formatScore, getNivelColor } from '../lib/utils'
+import { T, useLang } from '../LangContext'
 import type { Candidate } from '../api/types'
 import { SourceBadge } from './CandidateCard'
 
 export default function RankingTable({ ranking }: { ranking: Candidate[] }) {
+  const t = T[useLang()]
+
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-gray-50 border-b border-gray-200 text-left">
             <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-10">#</th>
-            <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Candidato</th>
-            <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-20">Puntaje</th>
-            <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-24">Nivel</th>
-            <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-28">Fuente</th>
+            <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{t.rankCandidate}</th>
+            <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-20">{t.rankScore}</th>
+            <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-24">{t.rankLevel}</th>
+            <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-28">{t.rankSource}</th>
           </tr>
         </thead>
         <tbody>

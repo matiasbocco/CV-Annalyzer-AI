@@ -3,6 +3,19 @@ import { twMerge } from 'tailwind-merge'
 import axios from 'axios'
 import type { Nivel } from '../api/types'
 
+export type Lang = 'es' | 'en'
+
+export function detectLang(text: string): Lang {
+  if (!text.trim()) return 'es'
+  const lower = text.toLowerCase()
+  const esScore =
+    (lower.match(/[áéíóúñü]/g)?.length ?? 0) * 3 +
+    (lower.match(/\b(para|con|los|las|del|una|que|por|como|este|esta|son|más|también|equipo|empresa|busca|años|experiencia)\b/g)?.length ?? 0)
+  const enScore =
+    (lower.match(/\b(the|and|for|with|our|will|have|this|that|are|from|you|your|we|job|team|company|years|experience|looking|required|position|role)\b/g)?.length ?? 0)
+  return esScore >= enScore ? 'es' : 'en'
+}
+
 /**
  * Merge Tailwind classes safely.
  * clsx handles conditional/array logic; twMerge resolves conflicting

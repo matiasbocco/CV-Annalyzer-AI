@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useMatchJob } from '../api/hooks'
-import { cn, getErrorMessage } from '../lib/utils'
+import { cn, detectLang, getErrorMessage } from '../lib/utils'
+import type { Lang } from '../lib/utils'
+import { LangProvider, T } from '../LangContext'
 import LoadingScreen from '../components/LoadingScreen'
 import RankingTable from '../components/RankingTable'
 import CandidateCard from '../components/CandidateCard'
@@ -9,6 +11,7 @@ export default function MatchPage() {
   const [jobDescription, setJobDescription] = useState('')
   const [topN, setTopN]                     = useState(10)
   const [validationError, setValidationError] = useState<string | null>(null)
+  const [lang, setLang]                     = useState<Lang>('es')
 
   const match = useMatchJob()
 
@@ -23,6 +26,7 @@ export default function MatchPage() {
     const err = validate()
     if (err) { setValidationError(err); return }
     setValidationError(null)
+    setLang(detectLang(jobDescription))
     match.mutate({ jobDescription: jobDescription.trim(), topN })
   }
 
@@ -46,37 +50,40 @@ export default function MatchPage() {
   }
 
   if (match.isSuccess) {
+    const t = T[lang]
     return (
-      <div className="min-h-screen bg-gray-50 py-10 px-4">
-        <div className="max-w-3xl mx-auto space-y-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">Candidatos del banco</h1>
-            <button
-              onClick={() => match.reset()}
-              className="text-sm bg-white border border-gray-200 px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-50"
-            >
-              + Nueva búsqueda
-            </button>
-          </div>
-
-          {match.data.job_summary && (
-            <div className="bg-indigo-50 border-l-4 border-indigo-500 rounded-r-lg p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600 mb-1">
-                Perfil ideal
-              </p>
-              <p className="text-sm text-gray-700 leading-relaxed">{match.data.job_summary}</p>
+      <LangProvider value={lang}>
+        <div className="min-h-screen bg-gray-50 py-10 px-4">
+          <div className="max-w-3xl mx-auto space-y-6">
+            <div className="flex items-center justify-between">
+              <h1 className="text-2xl font-bold text-gray-900">Candidatos del banco</h1>
+              <button
+                onClick={() => match.reset()}
+                className="text-sm bg-white border border-gray-200 px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-50"
+              >
+                + Nueva búsqueda
+              </button>
             </div>
-          )}
 
-          <RankingTable ranking={match.data.ranking} />
+            {match.data.job_summary && (
+              <div className="bg-indigo-50 border-l-4 border-indigo-500 rounded-r-lg p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600 mb-1">
+                  {t.idealProfile}
+                </p>
+                <p className="text-sm text-gray-700 leading-relaxed">{match.data.job_summary}</p>
+              </div>
+            )}
 
-          <div className="space-y-4">
-            {match.data.ranking.map((c, i) => (
-              <CandidateCard key={c.filename} position={i + 1} candidate={c} />
-            ))}
+            <RankingTable ranking={match.data.ranking} />
+
+            <div className="space-y-4">
+              {match.data.ranking.map((c, i) => (
+                <CandidateCard key={c.filename} position={i + 1} candidate={c} />
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      </LangProvider>
     )
   }
 

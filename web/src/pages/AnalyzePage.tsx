@@ -1,7 +1,9 @@
 import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { useAnalyzeCVs } from '../api/hooks'
-import { cn, getErrorMessage } from '../lib/utils'
+import { cn, detectLang, getErrorMessage } from '../lib/utils'
+import { LangProvider, T, useLang } from '../LangContext'
+import type { Lang } from '../lib/utils'
 import type { AnalyzeResponse, Candidate } from '../api/types'
 import LoadingScreen from '../components/LoadingScreen'
 import RankingTable from '../components/RankingTable'
@@ -17,6 +19,7 @@ export default function AnalyzePage() {
   const [includeBank, setIncludeBank]         = useState(false)
   const [validationError, setValidationError] = useState<string | null>(null)
   const [rankingOverride, setRankingOverride] = useState<Candidate[] | null>(null)
+  const [lang, setLang]                       = useState<Lang>('es')
 
   const analyze = useAnalyzeCVs()
 
@@ -48,6 +51,7 @@ export default function AnalyzePage() {
     const err = validate()
     if (err) { setValidationError(err); return }
     setValidationError(null)
+    setLang(detectLang(jobDescription))
     analyze.mutate({ files, jobDescription: jobDescription.trim(), includeBank })
   }
 
@@ -84,24 +88,26 @@ export default function AnalyzePage() {
   if (analyze.isSuccess) {
     const displayRanking = rankingOverride ?? analyze.data.ranking
     return (
-      <div className="min-h-screen bg-gray-50 py-10 px-4">
-        <div className="max-w-3xl mx-auto space-y-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">Resultados</h1>
-            <button
-              onClick={resetAll}
-              className="text-sm bg-white border border-gray-200 px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-50"
-            >
-              + Nuevo análisis
-            </button>
+      <LangProvider value={lang}>
+        <div className="min-h-screen bg-gray-50 py-10 px-4">
+          <div className="max-w-3xl mx-auto space-y-6">
+            <div className="flex items-center justify-between">
+              <h1 className="text-2xl font-bold text-gray-900">Resultados</h1>
+              <button
+                onClick={resetAll}
+                className="text-sm bg-white border border-gray-200 px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-50"
+              >
+                + Nuevo análisis
+              </button>
+            </div>
+            <ResultsView
+              data={analyze.data}
+              ranking={displayRanking}
+              onRankingUpdate={setRankingOverride}
+            />
           </div>
-          <ResultsView
-            data={analyze.data}
-            ranking={displayRanking}
-            onRankingUpdate={setRankingOverride}
-          />
         </div>
-      </div>
+      </LangProvider>
     )
   }
 
@@ -225,12 +231,14 @@ function ResultsView({
   ranking: Candidate[]
   onRankingUpdate: (r: Candidate[]) => void
 }) {
+  const t = T[useLang()]
+
   return (
     <div className="space-y-6">
       {/* Job summary */}
       <div className="bg-indigo-50 border-l-4 border-indigo-500 rounded-r-lg p-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600 mb-1">
-          Perfil ideal del candidato
+          {t.idealProfile}
         </p>
         <p className="text-sm text-gray-700 leading-relaxed">{data.job_summary}</p>
       </div>

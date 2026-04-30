@@ -1,18 +1,14 @@
 import { useState } from 'react'
 import { cn, formatScore, getNivelColor } from '../lib/utils'
+import { T, useLang } from '../LangContext'
 import type { Availability, Candidate, ContactInfo } from '../api/types'
 
-// ── Availability constants ────────────────────────────────────────────────────
+// ── Availability color map (keys don't change with lang) ──────────────────────
 
 const AVAIL_COLORS: Record<NonNullable<Availability>, string> = {
   available:   'bg-green-100 text-green-700',
   open:        'bg-blue-100  text-blue-700',
   not_looking: 'bg-red-100   text-red-600',
-}
-const AVAIL_LABELS: Record<NonNullable<Availability>, string> = {
-  available:   'Disponible',
-  open:        'Abierto',
-  not_looking: 'No busca',
 }
 
 // ── SourceBadge (also exported for RankingTable) ──────────────────────────────
@@ -24,17 +20,18 @@ export function SourceBadge({
   source: 'uploaded' | 'bank'
   recencyFactor: number
 }) {
+  const t = T[useLang()]
   if (source === 'uploaded') {
     return (
       <span className="text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-        Subido
+        {t.sourceUploaded}
       </span>
     )
   }
   const suffix = recencyFactor < 1.0 ? ` · ${recencyFactor}×` : ''
   return (
     <span className="text-xs font-semibold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
-      Del banco{suffix}
+      {t.sourceBank}{suffix}
     </span>
   )
 }
@@ -42,6 +39,7 @@ export function SourceBadge({
 // ── ContactSection ────────────────────────────────────────────────────────────
 
 function ContactSection({ contact }: { contact: ContactInfo }) {
+  const t = T[useLang()]
   const hasAny = contact.email || contact.phone || contact.location || contact.availability
   if (!hasAny) return null
 
@@ -49,7 +47,7 @@ function ContactSection({ contact }: { contact: ContactInfo }) {
 
   return (
     <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
-      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Contacto</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">{t.contact}</p>
 
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
         {contact.email    && <span>✉ {contact.email}</span>}
@@ -60,7 +58,7 @@ function ContactSection({ contact }: { contact: ContactInfo }) {
             'text-xs font-semibold px-2 py-0.5 rounded-full',
             AVAIL_COLORS[contact.availability],
           )}>
-            {AVAIL_LABELS[contact.availability]}
+            {t[contact.availability === 'not_looking' ? 'notLooking' : contact.availability]}
           </span>
         )}
       </div>
@@ -126,6 +124,7 @@ function BulletList({ title, items, color }: { title: string; items: string[]; c
 // ── CopyEmailButton ───────────────────────────────────────────────────────────
 
 function CopyEmailButton({ email }: { email: string }) {
+  const t = T[useLang()]
   const [copied, setCopied] = useState(false)
 
   async function handleCopy() {
@@ -134,7 +133,7 @@ function CopyEmailButton({ email }: { email: string }) {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      // clipboard unavailable (non-HTTPS or permissions denied)
+      // clipboard unavailable
     }
   }
 
@@ -143,7 +142,7 @@ function CopyEmailButton({ email }: { email: string }) {
       onClick={handleCopy}
       className="text-xs border border-gray-200 bg-white text-gray-600 px-2.5 py-1 rounded hover:bg-gray-50"
     >
-      {copied ? '✓ Copiado' : '✉ Copiar email'}
+      {copied ? t.copied : t.copyEmail}
     </button>
   )
 }
@@ -157,6 +156,7 @@ export default function CandidateCard({
   position: number
   candidate: Candidate
 }) {
+  const t = T[useLang()]
   const name = c.contact?.full_name ?? c.filename
 
   return (
@@ -211,11 +211,11 @@ export default function CandidateCard({
 
       <hr className="border-gray-100" />
 
-      {/* Fortalezas / Brechas / Recomendaciones */}
+      {/* Strengths / Gaps / Recommendations */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <BulletList title="Fortalezas"      items={c.strengths}       color="text-green-600" />
-        <BulletList title="Brechas"          items={c.gaps}            color="text-red-500" />
-        <BulletList title="Recomendaciones" items={c.recommendations} color="text-blue-600" />
+        <BulletList title={t.strengths}        items={c.strengths}       color="text-green-600" />
+        <BulletList title={t.gaps}             items={c.gaps}            color="text-red-500" />
+        <BulletList title={t.recommendations}  items={c.recommendations} color="text-blue-600" />
       </div>
 
       {/* Summary */}

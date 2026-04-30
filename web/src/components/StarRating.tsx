@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useSubmitFeedback } from '../api/hooks'
+import { T, useLang } from '../LangContext'
 
 interface Props {
   analysisId: string
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export default function StarRating({ analysisId, onRated }: Props) {
+  const t = T[useLang()]
   const [hovered, setHovered] = useState(0)
   const [selected, setSelected] = useState(0)
   const feedback = useSubmitFeedback()
@@ -18,7 +20,7 @@ export default function StarRating({ analysisId, onRated }: Props) {
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 flex flex-col items-center gap-3">
-      <p className="text-sm font-medium text-gray-700">¿Qué tan útil fue este ranking?</p>
+      <p className="text-sm font-medium text-gray-700">{t.ratingPrompt}</p>
 
       <div className="flex gap-1">
         {[1, 2, 3, 4, 5].map(star => (
@@ -30,7 +32,7 @@ export default function StarRating({ analysisId, onRated }: Props) {
             onMouseLeave={() => setHovered(0)}
             onClick={() => handleSelect(star)}
             className="text-2xl leading-none transition-colors disabled:cursor-wait"
-            aria-label={`${star} estrellas`}
+            aria-label={`${star} stars`}
           >
             <span className={(hovered || selected) >= star ? 'text-amber-400' : 'text-gray-300'}>
               {(hovered || selected) >= star ? '★' : '☆'}
@@ -40,10 +42,10 @@ export default function StarRating({ analysisId, onRated }: Props) {
       </div>
 
       {feedback.isSuccess && (
-        <p className="text-sm text-green-600 font-medium">✓ Gracias por tu feedback</p>
+        <p className="text-sm text-green-600 font-medium">{t.ratingThanks}</p>
       )}
       {feedback.isError && (
-        <p className="text-xs text-red-500">No se pudo guardar el feedback.</p>
+        <p className="text-xs text-red-500">{t.ratingError}</p>
       )}
     </div>
   )
