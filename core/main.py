@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from openai import OpenAIError
@@ -102,6 +103,14 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="CV Analyzer AI", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
