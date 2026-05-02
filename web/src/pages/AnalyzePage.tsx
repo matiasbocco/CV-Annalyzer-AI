@@ -11,6 +11,10 @@ import CandidateCard from '../components/CandidateCard'
 import StarRating from '../components/StarRating'
 import TiebreakerFlow from '../components/TiebreakerFlow'
 
+const MAX_FILES   = 10
+const JD_MIN      = 50
+const JD_MAX      = 3000
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function AnalyzePage() {
@@ -26,7 +30,9 @@ export default function AnalyzePage() {
   const onDrop = useCallback((accepted: File[]) => {
     setFiles(prev => {
       const existing = new Set(prev.map(f => f.name))
-      return [...prev, ...accepted.filter(f => !existing.has(f.name))]
+      const filtered = accepted.filter(f => !existing.has(f.name))
+      const combined = [...prev, ...filtered]
+      return combined.length > MAX_FILES ? combined.slice(0, MAX_FILES) : combined
     })
   }, [])
 
@@ -48,7 +54,9 @@ export default function AnalyzePage() {
 
   function validate(): string | null {
     if (files.length === 0) return 'Seleccioná al menos un archivo (PDF, DOCX o imagen).'
-    if (jobDescription.trim().length < 50) return 'La descripción debe tener al menos 50 caracteres.'
+    if (files.length > MAX_FILES) return `Se pueden analizar como máximo ${MAX_FILES} CVs por vez.`
+    if (jobDescription.trim().length < JD_MIN) return `La descripción debe tener al menos ${JD_MIN} caracteres.`
+    if (jobDescription.length > JD_MAX) return `La descripción no puede superar los ${JD_MAX} caracteres.`
     return null
   }
 
@@ -148,23 +156,32 @@ export default function AnalyzePage() {
             </div>
 
             {files.length > 0 && (
-              <ul className="mt-2 space-y-1">
-                {files.map(f => (
-                  <li
-                    key={f.name}
-                    className="flex items-center justify-between text-sm bg-gray-50 border border-gray-200 rounded px-3 py-1.5"
-                  >
-                    <span className="text-gray-700 truncate">{f.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeFile(f.name)}
-                      className="ml-3 text-gray-400 hover:text-red-500 flex-shrink-0 text-lg leading-none"
+              <>
+                <ul className="mt-2 space-y-1">
+                  {files.map(f => (
+                    <li
+                      key={f.name}
+                      className="flex items-center justify-between text-sm bg-gray-50 border border-gray-200 rounded px-3 py-1.5"
                     >
-                      ×
-                    </button>
-                  </li>
-                ))}
-              </ul>
+                      <span className="text-gray-700 truncate">{f.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeFile(f.name)}
+                        className="ml-3 text-gray-400 hover:text-red-500 flex-shrink-0 text-lg leading-none"
+                      >
+                        ×
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <p className={cn(
+                  'text-xs mt-1',
+                  files.length >= MAX_FILES ? 'text-amber-600 font-medium' : 'text-gray-400',
+                )}>
+                  {files.length} / {MAX_FILES} archivos
+                  {files.length >= MAX_FILES ? ' — límite alcanzado' : ''}
+                </p>
+              </>
             )}
           </div>
 
@@ -172,24 +189,42 @@ export default function AnalyzePage() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Descripción del puesto{' '}
-              <span className="text-gray-400 font-normal">(mín. 50 caracteres)</span>
+              <span className="text-gray-400 font-normal">(mín. {JD_MIN} caracteres)</span>
             </label>
             <textarea
               value={jobDescription}
               onChange={e => setJobDescription(e.target.value)}
               rows={6}
               placeholder="Pegá la descripción completa del puesto aquí…"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400 resize-y"
+              className={cn(
+                'w-full border rounded-lg px-3 py-2 text-sm focus:outline-none resize-y',
+                jobDescription.length > JD_MAX
+                  ? 'border-red-400 focus:border-red-400'
+                  : 'border-gray-300 focus:border-blue-400',
+              )}
             />
-            <p className={cn(
-              'text-xs mt-1',
-              jobDescription.length >= 50 ? 'text-green-600' : 'text-gray-400',
-            )}>
-              {jobDescription.length} chars{' '}
-              {jobDescription.length < 50
-                ? `(faltan ${50 - jobDescription.length})`
-                : '✓'}
-            </p>
+            <div className="flex justify-between mt-1">
+              <p className={cn(
+                'text-xs',
+                jobDescription.length > JD_MAX
+                  ? 'text-red-600 font-medium'
+                  : jobDescription.length >= JD_MIN
+                    ? 'text-green-600'
+                    : 'text-gray-400',
+              )}>
+                {jobDescription.length < JD_MIN
+                  ? `faltan ${JD_MIN - jobDescription.length} caracteres`
+                  : jobDescription.length > JD_MAX
+                    ? `${jobDescription.length - JD_MAX} caracteres de más`
+                    : '✓'}
+              </p>
+              <p className={cn(
+                'text-xs',
+                jobDescription.length > JD_MAX ? 'text-red-600 font-medium' : 'text-gray-400',
+              )}>
+                {jobDescription.length} / {JD_MAX}
+              </p>
+            </div>
           </div>
 
           {/* Banco de CVs */}

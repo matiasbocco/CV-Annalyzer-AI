@@ -294,9 +294,6 @@ function SuccessCard({
           {isDuplicate ? 'CV ya registrado' : '¡CV agregado al banco!'}
         </p>
         <p className="text-sm text-gray-500 mt-1">{result.message}</p>
-        {result.cv_id && (
-          <p className="text-xs text-gray-400 mt-1 font-mono">{result.cv_id}</p>
-        )}
       </div>
       <button
         type="button"

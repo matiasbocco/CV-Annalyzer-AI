@@ -146,8 +146,13 @@ def _build_contact(cv) -> ContactInfo | None:
     return info
 
 
+_JD_MIN = 50
+_JD_MAX = 3000
+_MAX_UPLOAD_FILES = 10
+
+
 class MatchJobRequest(BaseModel):
-    job_description: str
+    job_description: str = Field(min_length=_JD_MIN, max_length=_JD_MAX)
     top_n: int = Field(default=10, ge=1, le=50)
 
 
@@ -295,7 +300,16 @@ async def analyze(
     include_bank: Annotated[bool, Form(description="Merge top bank candidates into ranking")] = False,
     db: AsyncSession = Depends(get_db),
 ):
-    # 1. Extract uploaded CV files (PDF / DOCX / image).
+    # 1. Early validation (no IO needed).
+    if len(files) > _MAX_UPLOAD_FILES:
+        raise HTTPException(400, f"Se pueden analizar como máximo {_MAX_UPLOAD_FILES} CVs por vez.")
+    jd = job_description.strip()
+    if len(jd) < _JD_MIN:
+        raise HTTPException(422, f"La descripción debe tener al menos {_JD_MIN} caracteres.")
+    if len(jd) > _JD_MAX:
+        raise HTTPException(422, f"La descripción del puesto no puede superar los {_JD_MAX} caracteres.")
+
+    # 2. Extract uploaded CV files (PDF / DOCX / image).
     cvs: list[tuple[str, str]] = []
     for file in files:
         raw = await file.read()
@@ -306,7 +320,7 @@ async def analyze(
 
     uploaded_hashes = {compute_text_hash(text) for _, text in cvs}
 
-    # 2. Semantic search for bank candidates — only when explicitly requested.
+    # 3. Semantic search for bank candidates — only when explicitly requested.
     bank_cv_records: list[CV] = []
     if include_bank:
         try:
@@ -332,10 +346,10 @@ async def analyze(
     # 4. LLM ranking (sees only neutral labels, no real filenames or PII).
     try:
         result = await rank_candidates(job_description, anon_uploaded, bank_cvs=anon_bank or None)
-    except ValidationError as e:
-        raise HTTPException(502, {"message": "LLM returned malformed data", "errors": e.errors()})
-    except OpenAIError as e:
-        raise HTTPException(503, f"OpenAI unavailable: {e}")
+    except ValidationError:
+        raise HTTPException(502, "El servicio de análisis devolvió una respuesta inesperada. Intentá de nuevo.")
+    except OpenAIError:
+        raise HTTPException(503, "El servicio de IA no está disponible. Intentá más tarde.")
 
     # Restore real filenames before any downstream processing.
     for candidate in result.ranking:
@@ -523,7 +537,7 @@ async def match_job(
     try:
         job_embedding = await generate_embedding(body.job_description)
     except Exception as e:
-        raise HTTPException(502, f"Embedding generation failed: {e}")
+        raise HTTPException(502, "Error al generar el análisis semántico. Intentá más tarde.")
 
     bank_cv_records = await _search_bank(job_embedding, set(), body.top_n, db)
     if not bank_cv_records:
@@ -546,10 +560,10 @@ async def match_job(
             uploaded_cvs=[],
             bank_cvs=anon_bank,
         )
-    except ValidationError as e:
-        raise HTTPException(502, {"message": "LLM returned malformed data", "errors": e.errors()})
-    except OpenAIError as e:
-        raise HTTPException(503, f"OpenAI unavailable: {e}")
+    except ValidationError:
+        raise HTTPException(502, "El servicio de análisis devolvió una respuesta inesperada. Intentá de nuevo.")
+    except OpenAIError:
+        raise HTTPException(503, "El servicio de IA no está disponible. Intentá más tarde.")
 
     # Restore real filenames before downstream processing.
     for candidate in result.ranking:

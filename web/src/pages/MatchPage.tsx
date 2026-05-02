@@ -15,8 +15,12 @@ export default function MatchPage() {
 
   const match = useMatchJob()
 
+  const JD_MIN = 50
+  const JD_MAX = 3000
+
   function validate(): string | null {
-    if (jobDescription.trim().length < 50) return 'La descripción debe tener al menos 50 caracteres.'
+    if (jobDescription.trim().length < JD_MIN) return `La descripción debe tener al menos ${JD_MIN} caracteres.`
+    if (jobDescription.length > JD_MAX) return `La descripción no puede superar los ${JD_MAX} caracteres.`
     if (topN < 1 || topN > 20) return 'El número de candidatos debe estar entre 1 y 20.'
     return null
   }
@@ -114,17 +118,35 @@ export default function MatchPage() {
               onChange={e => setJobDescription(e.target.value)}
               rows={6}
               placeholder="Pegá la descripción completa del puesto aquí…"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400 resize-y"
+              className={cn(
+                'w-full border rounded-lg px-3 py-2 text-sm focus:outline-none resize-y',
+                jobDescription.length > JD_MAX
+                  ? 'border-red-400 focus:border-red-400'
+                  : 'border-gray-300 focus:border-blue-400',
+              )}
             />
-            <p className={cn(
-              'text-xs mt-1',
-              jobDescription.length >= 50 ? 'text-green-600' : 'text-gray-400',
-            )}>
-              {jobDescription.length} chars{' '}
-              {jobDescription.length < 50
-                ? `(faltan ${50 - jobDescription.length})`
-                : '✓'}
-            </p>
+            <div className="flex justify-between mt-1">
+              <p className={cn(
+                'text-xs',
+                jobDescription.length > JD_MAX
+                  ? 'text-red-600 font-medium'
+                  : jobDescription.length >= JD_MIN
+                    ? 'text-green-600'
+                    : 'text-gray-400',
+              )}>
+                {jobDescription.length < JD_MIN
+                  ? `faltan ${JD_MIN - jobDescription.length} caracteres`
+                  : jobDescription.length > JD_MAX
+                    ? `${jobDescription.length - JD_MAX} caracteres de más`
+                    : '✓'}
+              </p>
+              <p className={cn(
+                'text-xs',
+                jobDescription.length > JD_MAX ? 'text-red-600 font-medium' : 'text-gray-400',
+              )}>
+                {jobDescription.length} / {JD_MAX}
+              </p>
+            </div>
           </div>
 
           <div>
