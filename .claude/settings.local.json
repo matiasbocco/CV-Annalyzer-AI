@@ -26,7 +26,22 @@
       "Bash(npm create *)",
       "Bash(npm install *)",
       "Bash(npx tailwindcss *)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(python -m pytest --version)",
+      "Bash(.venv\\\\Scripts\\\\python -m pytest --version)",
+      "Bash(python -c \"import sys; print\\(sys.executable\\)\")",
+      "Bash(ls .venv/Scripts/)",
+      "Bash(ls .venv/bin/)",
+      "PowerShell(& \"C:\\\\Users\\\\Mbocco\\\\OneDrive\\\\Escritorio\\\\Mati\\\\mati bocco papá\\\\CV-Annalyzer-AI\\\\CV-Annalyzer-AI\\\\venv\\\\Scripts\\\\python.exe\" -m pytest --version 2>&1; & \"C:\\\\Users\\\\Mbocco\\\\OneDrive\\\\Escritorio\\\\Mati\\\\mati bocco papá\\\\CV-Annalyzer-AI\\\\CV-Annalyzer-AI\\\\venv\\\\Scripts\\\\pip.exe\" install pytest -q 2>&1 | Select-Object -Last 3)",
+      "PowerShell($python = \"C:\\\\Users\\\\Mbocco\\\\OneDrive\\\\Escritorio\\\\Mati\\\\mati bocco papá\\\\CV-Annalyzer-AI\\\\CV-Annalyzer-AI\\\\venv\\\\Scripts\\\\python.exe\"; & $python -c \"import pytest; print\\(pytest.__version__\\)\" 2>&1)",
+      "PowerShell($python = \"C:\\\\Users\\\\Mbocco\\\\OneDrive\\\\Escritorio\\\\Mati\\\\mati bocco papá\\\\CV-Annalyzer-AI\\\\CV-Annalyzer-AI\\\\venv\\\\Scripts\\\\python.exe\"; Set-Location \"C:\\\\Users\\\\Mbocco\\\\OneDrive\\\\Escritorio\\\\Mati\\\\mati bocco papá\\\\CV-Annalyzer-AI\\\\CV-Annalyzer-AI\"; & $python -m pytest core/tests/test_anonymization.py -v 2>&1)",
+      "PowerShell($python = \"C:\\\\Users\\\\Mbocco\\\\OneDrive\\\\Escritorio\\\\Mati\\\\mati bocco papá\\\\CV-Annalyzer-AI\\\\CV-Annalyzer-AI\\\\venv\\\\Scripts\\\\python.exe\"; Set-Location \"C:\\\\Users\\\\Mbocco\\\\OneDrive\\\\Escritorio\\\\Mati\\\\mati bocco pap�\\\\CV-Annalyzer-AI\\\\CV-Annalyzer-AI\"; & $python -m alembic upgrade head 2>&1)",
+      "PowerShell($python = \"C:\\\\Users\\\\Mbocco\\\\OneDrive\\\\Escritorio\\\\Mati\\\\mati bocco papá\\\\CV-Annalyzer-AI\\\\CV-Annalyzer-AI\\\\venv\\\\Scripts\\\\python.exe\"; $dir = \"C:\\\\Users\\\\Mbocco\\\\OneDrive\\\\Escritorio\\\\Mati\\\\mati bocco papá\\\\CV-Annalyzer-AI\\\\CV-Annalyzer-AI\"; & $python -m alembic --config \"$dir\\\\alembic.ini\" upgrade head 2>&1)",
+      "Bash(python -m pytest core/tests/test_file_extraction.py -v)",
+      "Bash(python -m pip show pytest)",
+      "Bash(venv/Scripts/python -m pytest core/tests/test_file_extraction.py -v)",
+      "Bash(venv/Scripts/pip install *)",
+      "Bash(venv/Scripts/python -m pytest core/tests/ -v)"
     ]
   }
 }
