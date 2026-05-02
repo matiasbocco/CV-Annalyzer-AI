@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -50,7 +51,7 @@ from core.services.cv_bank_service import ingest_cv, update_bank_cv_seen
 from core.services.embedding_service import compute_text_hash, generate_embedding
 from core.services.llm_service import client as llm_client
 from core.services.llm_service import rank_candidates, test_connection
-from core.services.pdf_service import extract_text
+from core.services.file_extraction_service import extract_text_from_bytes
 from core.services.recency_service import compute_recency_factor, nivel_from_score
 from core.services.tiebreaker_service import (
     apply_answers,
@@ -289,19 +290,16 @@ async def list_categories(db: AsyncSession = Depends(get_db)):
 
 @app.post("/analyze", status_code=201)
 async def analyze(
-    files: Annotated[list[UploadFile], File(description="One or more CV PDFs")],
+    files: Annotated[list[UploadFile], File(description="One or more CV files (PDF, DOCX, JPG, PNG, WEBP)")],
     job_description: Annotated[str, Form(description="Job description text")],
     include_bank: Annotated[bool, Form(description="Merge top bank candidates into ranking")] = False,
     db: AsyncSession = Depends(get_db),
 ):
-    # 1. Extract uploaded PDFs.
+    # 1. Extract uploaded CV files (PDF / DOCX / image).
     cvs: list[tuple[str, str]] = []
     for file in files:
         raw = await file.read()
-        try:
-            text = extract_text(raw)
-        except Exception:
-            raise HTTPException(400, f"Invalid PDF: {file.filename}")
+        text = await extract_text_from_bytes(raw, file.filename or "cv")
         if not text.strip():
             raise HTTPException(422, f"No extractable text: {file.filename}")
         cvs.append((file.filename, text))
@@ -419,24 +417,21 @@ CRITICAL_CONTACT_FIELDS = {"full_name", "email", "availability"}
 
 @app.post("/cvs/extract-contact")
 async def extract_cv_contact(
-    file: Annotated[UploadFile, File(description="PDF to extract contact info from")],
+    file: Annotated[UploadFile, File(description="CV file to extract contact info from (PDF, DOCX, JPG, PNG, WEBP)")],
 ):
-    """Extract contact info from a PDF without saving anything.
+    """Extract contact info from a CV file without saving anything.
 
     Returns the extracted fields plus a list of critical missing fields so
     the UI can prompt the candidate to fill them before final upload.
     """
     fname = file.filename or "cv.pdf"
-    try:
-        raw = await file.read()
-        text = extract_text(raw)
-    except Exception:
-        raise HTTPException(400, "El archivo no es un PDF válido.")
+    raw = await file.read()
+    text = await extract_text_from_bytes(raw, fname)
 
     if not text.strip():
-        raise HTTPException(422, "No se pudo extraer texto. ¿Es un PDF escaneado?")
+        raise HTTPException(422, "No se pudo extraer texto del archivo.")
 
-    text_hash = compute_text_hash(text)
+    text_hash = hashlib.sha256(raw).hexdigest()
     contact   = await extract_contact_info(text)
 
     missing = [f for f in CRITICAL_CONTACT_FIELDS if not contact.get(f)]
@@ -453,7 +448,7 @@ async def extract_cv_contact(
 
 @app.post("/cvs/batch")
 async def upload_candidate_cv(
-    file: Annotated[UploadFile, File(description="Candidate's CV in PDF format")],
+    file: Annotated[UploadFile, File(description="Candidate's CV (PDF, DOCX, JPG, PNG, WEBP)")],
     contact_info: Annotated[str, Form(description="JSON contact fields")] = "{}",
     expected_hash: Annotated[str, Form(description="Hash from extract-contact step")] = "",
     db: AsyncSession = Depends(get_db),
@@ -463,21 +458,21 @@ async def upload_candidate_cv(
     fname = file.filename or "cv.pdf"
     try:
         raw  = await file.read()
-        text = extract_text(raw)
-    except Exception:
-        return JSONResponse(status_code=400, content={
+        text = await extract_text_from_bytes(raw, fname)
+    except HTTPException as exc:
+        return JSONResponse(status_code=exc.status_code, content={
             "status": "failed", "filename": fname, "cv_id": None,
-            "message": "El archivo no es un PDF válido.",
+            "message": exc.detail if isinstance(exc.detail, str) else "No se pudo procesar el archivo.",
         })
 
     if not text.strip():
         return JSONResponse(status_code=400, content={
             "status": "failed", "filename": fname, "cv_id": None,
-            "message": "No se pudo extraer texto del PDF.",
+            "message": "No se pudo extraer texto del archivo.",
         })
 
     # Hash verification — ensures the uploaded file matches the extraction step.
-    actual_hash = compute_text_hash(text)
+    actual_hash = hashlib.sha256(raw).hexdigest()
     if expected_hash and actual_hash != expected_hash:
         return JSONResponse(status_code=409, content={
             "status": "failed", "filename": fname, "cv_id": None,

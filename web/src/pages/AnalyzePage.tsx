@@ -32,7 +32,13 @@ export default function AnalyzePage() {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: { 'application/pdf': ['.pdf'] },
+    accept: {
+      'application/pdf': ['.pdf'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/png': ['.png'],
+      'image/webp': ['.webp'],
+    },
     multiple: true,
   })
 
@@ -41,7 +47,7 @@ export default function AnalyzePage() {
   }
 
   function validate(): string | null {
-    if (files.length === 0) return 'Seleccioná al menos un archivo PDF.'
+    if (files.length === 0) return 'Seleccioná al menos un archivo (PDF, DOCX o imagen).'
     if (jobDescription.trim().length < 50) return 'La descripción debe tener al menos 50 caracteres.'
     return null
   }
@@ -122,7 +128,7 @@ export default function AnalyzePage() {
           {/* Dropzone */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Archivos de CV <span className="text-gray-400 font-normal">(PDF)</span>
+              Archivos de CV <span className="text-gray-400 font-normal">(PDF, DOCX, JPG, PNG, WEBP)</span>
             </label>
             <div
               {...getRootProps()}
@@ -136,8 +142,8 @@ export default function AnalyzePage() {
               <input {...getInputProps()} />
               <p className="text-sm text-gray-500">
                 {isDragActive
-                  ? 'Soltá los PDFs aquí…'
-                  : 'Arrastrá PDFs aquí, o hacé clic para seleccionar'}
+                  ? 'Soltá los archivos aquí…'
+                  : 'Arrastrá PDFs, DOCX o imágenes aquí, o hacé clic para seleccionar'}
               </p>
             </div>
 
