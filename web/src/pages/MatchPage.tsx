@@ -1,19 +1,75 @@
-import { useState } from 'react'
-import { useMatchJob } from '../api/hooks'
+import { useState, useEffect } from 'react'
+import { useMatchJob, useJobStatus } from '../api/hooks'
 import { cn, detectLang, getErrorMessage } from '../lib/utils'
 import type { Lang } from '../lib/utils'
 import { LangProvider, T } from '../LangContext'
-import LoadingScreen from '../components/LoadingScreen'
+import type { AnalyzeResponse } from '../api/types'
 import RankingTable from '../components/RankingTable'
 import CandidateCard from '../components/CandidateCard'
 
-export default function MatchPage() {
-  const [jobDescription, setJobDescription] = useState('')
-  const [topN, setTopN]                     = useState(10)
-  const [validationError, setValidationError] = useState<string | null>(null)
-  const [lang, setLang]                     = useState<Lang>('es')
+// ── Async loading screen ──────────────────────────────────────────────────────
 
-  const match = useMatchJob()
+const STEPS = [
+  { icon: '🔍', text: 'Buscando candidatos en el banco...' },
+  { icon: '🤖', text: 'Analizando con IA...' },
+  { icon: '💾', text: 'Guardando resultados...' },
+]
+
+function AsyncLoadingScreen() {
+  const [step, setStep] = useState(0)
+  useEffect(() => {
+    const id = setInterval(
+      () => setStep(p => Math.min(p + 1, STEPS.length - 1)),
+      8000,
+    )
+    return () => clearInterval(id)
+  }, [])
+
+  return (
+    <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center p-4">
+      <div className="w-full max-w-sm bg-[#111118] border border-slate-800 rounded-2xl p-8 space-y-6">
+        <div className="text-center space-y-1">
+          <p className="text-base font-semibold text-slate-200">Buscando candidatos</p>
+          <p className="text-xs text-slate-500">Este proceso puede tomar entre 15 y 40 segundos</p>
+        </div>
+        <div className="space-y-2">
+          {STEPS.map((s, i) => (
+            <div
+              key={i}
+              className={cn(
+                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-500',
+                i === step
+                  ? 'bg-sky-500/10 text-sky-400 font-medium'
+                  : i < step
+                    ? 'text-slate-600'
+                    : 'text-slate-700',
+              )}
+            >
+              <span className={i === step ? 'animate-bounce' : ''}>{s.icon}</span>
+              <span className="flex-1">{s.text}</span>
+              {i < step && <span className="text-emerald-500 text-xs">✓</span>}
+              {i === step && (
+                <span className="w-3.5 h-3.5 rounded-full border-2 border-sky-700 border-t-sky-400 animate-spin flex-shrink-0" />
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+
+export default function MatchPage() {
+  const [jobDescription, setJobDescription]   = useState('')
+  const [topN, setTopN]                       = useState(10)
+  const [validationError, setValidationError] = useState<string | null>(null)
+  const [lang, setLang]                       = useState<Lang>('es')
+  const [jobId, setJobId]                     = useState<string | null>(null)
+
+  const match     = useMatchJob()
+  const jobStatus = useJobStatus(jobId)
 
   const JD_MIN = 50
   const JD_MAX = 3000
@@ -31,20 +87,41 @@ export default function MatchPage() {
     if (err) { setValidationError(err); return }
     setValidationError(null)
     setLang(detectLang(jobDescription))
-    match.mutate({ jobDescription: jobDescription.trim(), topN })
+    match.mutate(
+      { jobDescription: jobDescription.trim(), topN },
+      { onSuccess: data => setJobId(data.job_id) },
+    )
   }
 
-  if (match.isPending) return <LoadingScreen text="Buscando candidatos en el banco…" />
+  function resetAll() {
+    match.reset()
+    setJobDescription('')
+    setValidationError(null)
+    setJobId(null)
+  }
 
-  if (match.isError) {
+  // ── Views ──────────────────────────────────────────────────────────────────
+
+  const isProcessing =
+    match.isPending ||
+    (jobId !== null &&
+      jobStatus.data?.status !== 'completed' &&
+      jobStatus.data?.status !== 'failed')
+
+  if (isProcessing) return <AsyncLoadingScreen />
+
+  if (match.isError || (jobId && jobStatus.data?.status === 'failed')) {
+    const msg = match.isError
+      ? getErrorMessage(match.error)
+      : (jobStatus.data?.error ?? 'La búsqueda falló.')
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="max-w-lg w-full bg-white border border-red-200 rounded-lg p-6 space-y-4">
-          <h2 className="text-lg font-semibold text-red-700">Error al buscar</h2>
-          <p className="text-sm text-gray-600">{getErrorMessage(match.error)}</p>
+      <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center p-4">
+        <div className="max-w-lg w-full bg-[#111118] border border-red-500/30 rounded-2xl p-6 space-y-4">
+          <h2 className="text-base font-semibold text-red-400">Error al buscar</h2>
+          <p className="text-sm text-slate-400">{msg}</p>
           <button
-            onClick={() => match.reset()}
-            className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200"
+            onClick={resetAll}
+            className="text-sm bg-slate-800 text-slate-300 border border-slate-700 px-4 py-2 rounded-lg hover:bg-slate-700 transition-colors"
           >
             ← Volver
           </button>
@@ -53,44 +130,45 @@ export default function MatchPage() {
     )
   }
 
-  if (match.isSuccess) {
+  if (jobId && jobStatus.data?.status === 'completed' && jobStatus.data.result) {
+    const data = jobStatus.data.result as AnalyzeResponse
     const t = T[lang]
     return (
       <LangProvider value={lang}>
-        <div className="min-h-screen bg-gray-50 py-10 px-4">
-          <div className="max-w-3xl mx-auto space-y-6">
+        <div className="min-h-screen bg-[#0A0A0F] py-10 px-4">
+          <div className="max-w-3xl mx-auto space-y-5">
             <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-bold text-gray-900">Candidatos del banco</h1>
+              <h1 className="text-xl font-bold text-slate-100">Candidatos del banco</h1>
               <button
-                onClick={() => match.reset()}
-                className="text-sm bg-white border border-gray-200 px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-50"
+                onClick={resetAll}
+                className="text-sm bg-slate-800 border border-slate-700 text-slate-400 px-4 py-2 rounded-lg hover:bg-slate-700 hover:text-slate-200 transition-colors"
               >
                 + Nueva búsqueda
               </button>
             </div>
 
-            {match.data.job_summary && (
-              <div className="bg-indigo-50 border-l-4 border-indigo-500 rounded-r-lg p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600 mb-1">
+            {data.job_summary && (
+              <div className="border-l-4 border-sky-500 bg-sky-500/5 rounded-r-xl p-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-sky-500 mb-1">
                   {t.idealProfile}
                 </p>
-                <p className="text-sm text-gray-700 leading-relaxed">{match.data.job_summary}</p>
+                <p className="text-sm text-slate-300 leading-relaxed">{data.job_summary}</p>
               </div>
             )}
 
-            {match.data.anonymized && (
+            {data.anonymized && (
               <span
-                className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold px-3 py-1 rounded-full cursor-help w-fit"
+                className="inline-flex items-center gap-1.5 bg-sky-500/10 text-sky-400 border border-sky-500/30 text-xs font-semibold px-3 py-1 rounded-full cursor-help w-fit"
                 title="Los datos de contacto fueron ocultados al modelo de IA durante la evaluación para evitar sesgos."
               >
                 🔒 Evaluado sin datos personales
               </span>
             )}
 
-            <RankingTable ranking={match.data.ranking} />
+            <RankingTable ranking={data.ranking} />
 
             <div className="space-y-4">
-              {match.data.ranking.map((c, i) => (
+              {data.ranking.map((c, i) => (
                 <CandidateCard key={c.filename} position={i + 1} candidate={c} />
               ))}
             </div>
@@ -100,59 +178,61 @@ export default function MatchPage() {
     )
   }
 
-  // Form (idle)
-  return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4">
-      <div className="max-w-2xl mx-auto">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Buscar en banco de CVs</h1>
+  // ── Form ───────────────────────────────────────────────────────────────────
 
-        <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-lg p-6 space-y-5">
+  const charState =
+    jobDescription.length > JD_MAX ? 'over' :
+    jobDescription.length >= JD_MIN ? 'ok' : 'under'
+
+  return (
+    <div className="min-h-screen bg-[#0A0A0F] py-10 px-4">
+      <div className="max-w-2xl mx-auto">
+        <h1 className="text-xl font-bold text-slate-100 mb-6">Buscar en banco de CVs</h1>
+
+        <form onSubmit={handleSubmit} className="bg-[#111118] border border-slate-800 rounded-2xl p-6 space-y-5">
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-slate-300 mb-2">
               Descripción del puesto{' '}
-              <span className="text-gray-400 font-normal">(mín. 50 caracteres)</span>
+              <span className="text-slate-600 font-normal">mín. {JD_MIN} caracteres</span>
             </label>
             <textarea
               value={jobDescription}
               onChange={e => setJobDescription(e.target.value)}
               rows={6}
-              placeholder="Pegá la descripción completa del puesto aquí…"
+              placeholder="Pegá la descripción del puesto aquí…"
               className={cn(
-                'w-full border rounded-lg px-3 py-2 text-sm focus:outline-none resize-y',
-                jobDescription.length > JD_MAX
-                  ? 'border-red-400 focus:border-red-400'
-                  : 'border-gray-300 focus:border-blue-400',
+                'w-full rounded-xl px-3 py-2.5 text-sm bg-slate-800/50 text-slate-200 placeholder-slate-600 resize-y',
+                'border focus:outline-none focus:ring-1 transition-colors',
+                charState === 'over'
+                  ? 'border-red-500/60 focus:border-red-500 focus:ring-red-500/30'
+                  : 'border-slate-700 focus:border-sky-500 focus:ring-sky-500/20',
               )}
             />
-            <div className="flex justify-between mt-1">
-              <p className={cn(
+            <div className="flex justify-between mt-1.5">
+              <span className={cn(
                 'text-xs',
-                jobDescription.length > JD_MAX
-                  ? 'text-red-600 font-medium'
-                  : jobDescription.length >= JD_MIN
-                    ? 'text-green-600'
-                    : 'text-gray-400',
+                charState === 'over'  ? 'text-red-400' :
+                charState === 'ok'    ? 'text-emerald-500' :
+                                        'text-slate-600',
               )}>
-                {jobDescription.length < JD_MIN
-                  ? `faltan ${JD_MIN - jobDescription.length} caracteres`
-                  : jobDescription.length > JD_MAX
-                    ? `${jobDescription.length - JD_MAX} caracteres de más`
-                    : '✓'}
-              </p>
-              <p className={cn(
+                {charState === 'under' && `faltan ${JD_MIN - jobDescription.length} caracteres`}
+                {charState === 'ok'    && '✓'}
+                {charState === 'over'  && `${jobDescription.length - JD_MAX} de más`}
+              </span>
+              <span className={cn(
                 'text-xs',
-                jobDescription.length > JD_MAX ? 'text-red-600 font-medium' : 'text-gray-400',
+                charState === 'over' ? 'text-red-400' : 'text-slate-600',
               )}>
                 {jobDescription.length} / {JD_MAX}
-              </p>
+              </span>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-slate-300 mb-2">
               Número de candidatos{' '}
-              <span className="text-gray-400 font-normal">(1–20)</span>
+              <span className="text-slate-600 font-normal">1–20</span>
             </label>
             <input
               type="number"
@@ -160,19 +240,19 @@ export default function MatchPage() {
               max={20}
               value={topN}
               onChange={e => setTopN(Number(e.target.value))}
-              className="w-28 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
+              className="w-28 border border-slate-700 bg-slate-800/50 text-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20 transition-colors"
             />
           </div>
 
           {validationError && (
-            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+            <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2.5">
               {validationError}
             </p>
           )}
 
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white font-semibold py-2.5 rounded-lg hover:bg-blue-700 transition-colors"
+            className="w-full bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-700 hover:to-sky-600 text-white font-semibold py-2.5 rounded-xl transition-all"
           >
             Buscar candidatos
           </button>

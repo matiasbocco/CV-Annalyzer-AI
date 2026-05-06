@@ -1,42 +1,48 @@
 import client from './client'
 import type {
-  AnalyzeResponse,
-  Category,
   ContactInfo,
   ExtractContactResponse,
   FeedbackResponse,
-  MatchJobResponse,
+  JobStatusResponse,
+  JobSubmitResponse,
   StartTiebreakerResponse,
   TiebreakerAnswer,
   TiebreakerAnswerResponse,
-  TiebreakerSessionResponse,
   UploadResponse,
 } from './types'
 
 // ── Analysis ──────────────────────────────────────────────────────────────────
 
+/** Submits files for analysis. Returns a job_id immediately (HTTP 202). */
 export async function analyzeCVs(
   files: File[],
   jobDescription: string,
   includeBank: boolean,
-): Promise<AnalyzeResponse> {
+): Promise<JobSubmitResponse> {
   const form = new FormData()
   files.forEach((f) => form.append('files', f))
   form.append('job_description', jobDescription)
   form.append('include_bank', includeBank ? 'true' : 'false')
 
-  const { data } = await client.post<AnalyzeResponse>('/analyze', form)
+  const { data } = await client.post<JobSubmitResponse>('/analyze', form)
   return data
 }
 
+/** Queues a bank-only search. Returns a job_id immediately (HTTP 202). */
 export async function matchJob(
   jobDescription: string,
   topN = 10,
-): Promise<MatchJobResponse> {
-  const { data } = await client.post<MatchJobResponse>('/match-job', {
+): Promise<JobSubmitResponse> {
+  const { data } = await client.post<JobSubmitResponse>('/match-job', {
     job_description: jobDescription,
     top_n: topN,
   })
+  return data
+}
+
+/** Poll job status. Returns pending / completed (with result) / failed. */
+export async function getJobStatus(jobId: string): Promise<JobStatusResponse> {
+  const { data } = await client.get<JobStatusResponse>(`/jobs/${jobId}`)
   return data
 }
 
@@ -77,13 +83,6 @@ export async function submitFeedback(
   return data
 }
 
-// ── Categories ────────────────────────────────────────────────────────────────
-
-export async function listCategories(): Promise<Category[]> {
-  const { data } = await client.get<Category[]>('/categories')
-  return data
-}
-
 // ── Tiebreaker ────────────────────────────────────────────────────────────────
 
 export async function startTiebreaker(
@@ -106,11 +105,3 @@ export async function submitTiebreakerAnswers(
   return data
 }
 
-export async function getTiebreakerSession(
-  sessionId: string,
-): Promise<TiebreakerSessionResponse> {
-  const { data } = await client.get<TiebreakerSessionResponse>(
-    `/tiebreaker/${sessionId}`,
-  )
-  return data
-}

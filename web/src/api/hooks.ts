@@ -1,10 +1,9 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import type { ContactInfo, TiebreakerAnswer } from './types'
+import type { ContactInfo, JobStatusResponse, TiebreakerAnswer } from './types'
 import {
   analyzeCVs,
   extractContact,
-  getTiebreakerSession,
-  listCategories,
+  getJobStatus,
   matchJob,
   startTiebreaker,
   submitFeedback,
@@ -92,18 +91,21 @@ export function useSubmitTiebreakerAnswers() {
 
 // ── Queries — passive data fetching ──────────────────────────────────────────
 
-export function useCategories() {
+/**
+ * Polls GET /jobs/{jobId} every 2 seconds while status is "pending".
+ * Stops polling automatically when status becomes "completed" or "failed".
+ */
+export function useJobStatus(jobId: string | null) {
   return useQuery({
-    queryKey: ['categories'],
-    queryFn: listCategories,
-    staleTime: 5 * 60 * 1000, // categories change rarely; cache for 5 min
-  })
-}
-
-export function useTiebreakerSession(sessionId: string | null) {
-  return useQuery({
-    queryKey: ['tiebreaker', sessionId],
-    queryFn: () => getTiebreakerSession(sessionId!),
-    enabled: sessionId !== null,
+    queryKey: ['job', jobId],
+    queryFn: () => getJobStatus(jobId!),
+    enabled: !!jobId,
+    refetchInterval: (query) => {
+      const status = (query.state.data as JobStatusResponse | undefined)?.status
+      // Poll while we have no data yet or while the job is still running.
+      if (!status || status === 'pending') return 2000
+      return false
+    },
+    staleTime: 0,
   })
 }

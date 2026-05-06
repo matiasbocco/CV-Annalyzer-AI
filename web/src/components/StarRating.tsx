@@ -19,22 +19,26 @@ export default function StarRating({ analysisId, onRated }: Props) {
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 flex flex-col items-center gap-3">
-      <p className="text-sm font-medium text-gray-700">{t.ratingPrompt}</p>
+    <div className="bg-[#111118] border border-slate-800 rounded-xl p-4 flex flex-col items-center gap-3">
+      <p className="text-sm font-medium text-slate-400">{t.ratingPrompt}</p>
 
-      <div className="flex gap-1">
+      <div className="flex gap-1.5">
         {[1, 2, 3, 4, 5].map(star => (
           <button
             key={star}
             type="button"
-            disabled={feedback.isPending}
+            disabled={feedback.isPending || selected > 0}
             onMouseEnter={() => setHovered(star)}
             onMouseLeave={() => setHovered(0)}
             onClick={() => handleSelect(star)}
-            className="text-2xl leading-none transition-colors disabled:cursor-wait"
+            className="text-2xl leading-none transition-all disabled:cursor-default hover:scale-110"
             aria-label={`${star} stars`}
           >
-            <span className={(hovered || selected) >= star ? 'text-amber-400' : 'text-gray-300'}>
+            <span className={
+              (hovered || selected) >= star
+                ? 'text-amber-400'
+                : 'text-slate-700'
+            }>
               {(hovered || selected) >= star ? '★' : '☆'}
             </span>
           </button>
@@ -42,10 +46,10 @@ export default function StarRating({ analysisId, onRated }: Props) {
       </div>
 
       {feedback.isSuccess && (
-        <p className="text-sm text-green-600 font-medium">{t.ratingThanks}</p>
+        <p className="text-sm text-emerald-400 font-medium">{t.ratingThanks}</p>
       )}
       {feedback.isError && (
-        <p className="text-xs text-red-500">{t.ratingError}</p>
+        <p className="text-xs text-red-400">{t.ratingError}</p>
       )}
     </div>
   )

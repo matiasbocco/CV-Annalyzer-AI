@@ -34,7 +34,7 @@ class CV(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
-    # TEXT holds up to 65 535 bytes. The pdf_service truncates at 12 000 words
+    # TEXT holds up to 65 535 bytes. file_extraction_service truncates at 12 000 words
     # (~60-70 KB UTF-8). Upgrade to MEDIUMTEXT in production if needed.
     text_content: Mapped[str] = mapped_column(Text, nullable=False)
     text_hash: Mapped[str] = mapped_column(

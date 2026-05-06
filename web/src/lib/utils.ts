@@ -36,12 +36,12 @@ export function formatScore(score: number): string {
  */
 export function getNivelColor(nivel: Nivel): string {
   const map: Record<Nivel, string> = {
-    excelente: 'bg-green-100 text-green-700',
-    alto:      'bg-blue-100  text-blue-700',
-    medio:     'bg-amber-100 text-amber-700',
-    bajo:      'bg-red-100   text-red-600',
+    excelente: 'bg-sky-600 text-white',
+    alto:      'bg-blue-700/60 text-blue-200',
+    medio:     'bg-blue-900/60 text-blue-300',
+    bajo:      'bg-slate-700 text-slate-300',
   }
-  return map[nivel] ?? 'bg-gray-100 text-gray-600'
+  return map[nivel] ?? 'bg-slate-700 text-slate-400'
 }
 
 export function getErrorMessage(error: unknown): string {

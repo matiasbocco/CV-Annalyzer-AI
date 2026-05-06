@@ -12,12 +12,50 @@ services:
       DB_NAME: cv_analyzer
       DB_USER: cvuser
       DB_PASSWORD: cvpass
+      REDIS_URL: redis://redis:6379/0
     volumes:
       - .:/app
     command: uvicorn core.main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  celery_worker:
+    build: .
+    container_name: cv-analyzer-worker
+    command: celery -A core.celery_app worker --loglevel=info --concurrency=2
+    env_file:
+      - .env
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: cv_analyzer
+      DB_USER: cvuser
+      DB_PASSWORD: cvpass
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  redis:
+    image: redis:7-alpine
+    container_name: cv-analyzer-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   db:
     image: mysql:8.0
@@ -40,3 +78,4 @@ services:
 
 volumes:
   mysql_data:
+  redis_data:

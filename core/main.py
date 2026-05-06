@@ -293,12 +293,11 @@ async def list_categories(db: AsyncSession = Depends(get_db)):
 
 # ── Main analysis endpoint ────────────────────────────────────────────────────
 
-@app.post("/analyze", status_code=201)
+@app.post("/analyze", status_code=202)
 async def analyze(
     files: Annotated[list[UploadFile], File(description="One or more CV files (PDF, DOCX, JPG, PNG, WEBP)")],
     job_description: Annotated[str, Form(description="Job description text")],
     include_bank: Annotated[bool, Form(description="Merge top bank candidates into ranking")] = False,
-    db: AsyncSession = Depends(get_db),
 ):
     # 1. Early validation (no IO needed).
     if len(files) > _MAX_UPLOAD_FILES:
@@ -309,120 +308,21 @@ async def analyze(
     if len(jd) > _JD_MAX:
         raise HTTPException(422, f"La descripción del puesto no puede superar los {_JD_MAX} caracteres.")
 
-    # 2. Extract uploaded CV files (PDF / DOCX / image).
-    cvs: list[tuple[str, str]] = []
+    # 2. Extract text synchronously — fast, validates files early, keeps binary
+    #    data out of the task queue. Only plain text travels to the Celery worker.
+    cv_data: list[dict] = []
     for file in files:
         raw = await file.read()
         text = await extract_text_from_bytes(raw, file.filename or "cv")
         if not text.strip():
             raise HTTPException(422, f"No extractable text: {file.filename}")
-        cvs.append((file.filename, text))
+        cv_data.append({"filename": file.filename, "text": text})
 
-    uploaded_hashes = {compute_text_hash(text) for _, text in cvs}
+    # 3. Queue the heavy work (LLM ranking, DB persistence) in Celery.
+    from core.tasks import analyze_cvs_task
+    task = analyze_cvs_task.delay(cv_data, jd, include_bank)
 
-    # 3. Semantic search for bank candidates — only when explicitly requested.
-    bank_cv_records: list[CV] = []
-    if include_bank:
-        try:
-            job_embedding = await generate_embedding(job_description)
-            bank_cv_records = await _search_bank(job_embedding, uploaded_hashes, 5, db)
-        except Exception:
-            pass  # degrade gracefully — analysis continues with uploaded CVs only
-
-    bank_cvs_for_llm = [
-        {"filename": cv.filename, "text": cv.text_content}
-        for cv in bank_cv_records
-    ]
-
-    # 3. Anonymize CVs before the LLM call (PII stays in MySQL; labels are ephemeral).
-    all_for_anon = (
-        [{"filename": fn, "text": text, "source": "uploaded"} for fn, text in cvs]
-        + [{"filename": bk["filename"], "text": bk["text"], "source": "bank"} for bk in bank_cvs_for_llm]
-    )
-    anon_cvs, label_map = anonymize_cvs(all_for_anon)
-    anon_uploaded = [(c["filename"], c["text"]) for c in anon_cvs if c.get("source") == "uploaded"]
-    anon_bank     = [{"filename": c["filename"], "text": c["text"]} for c in anon_cvs if c.get("source") == "bank"]
-
-    # 4. LLM ranking (sees only neutral labels, no real filenames or PII).
-    try:
-        result = await rank_candidates(job_description, anon_uploaded, bank_cvs=anon_bank or None)
-    except ValidationError:
-        raise HTTPException(502, "El servicio de análisis devolvió una respuesta inesperada. Intentá de nuevo.")
-    except OpenAIError:
-        raise HTTPException(503, "El servicio de IA no está disponible. Intentá más tarde.")
-
-    # Restore real filenames before any downstream processing.
-    for candidate in result.ranking:
-        candidate.filename = label_map.get(candidate.filename, candidate.filename)
-
-    # 5. Enrich ranking with source and recency factor; re-sort by adjusted score.
-    uploaded_filenames = {fn for fn, _ in cvs}
-    bank_cv_by_filename = {cv.filename: cv for cv in bank_cv_records}
-
-    enriched: list[CandidateRankingWithSource] = []
-    for candidate in result.ranking:
-        if candidate.filename in uploaded_filenames:
-            enriched.append(_enrich_candidate(candidate, "uploaded", 1.0))
-        else:
-            bank_cv = bank_cv_by_filename.get(candidate.filename)
-            factor = compute_recency_factor(bank_cv.created_at) if bank_cv else 1.0
-            enriched.append(_enrich_candidate(candidate, "bank", factor))
-
-    enriched.sort(key=lambda c: c.score, reverse=True)
-
-    # 6. Classify job description (tolerant).
-    category = await get_or_create_category(db, job_description, llm_client)
-
-    # 7. Persist Analysis row (ranking stores real filenames — labels are ephemeral).
-    analysis = Analysis(
-        job_description=job_description,
-        ranking=[c.model_dump() for c in enriched],
-        job_summary=result.job_summary,
-        model_used=settings.openai_model,
-        job_category_id=category.id if category else None,
-        anonymized=True,
-    )
-    db.add(analysis)
-    await db.commit()
-
-    # 8. Ingest uploaded CVs into the bank (after commit — see module docstring).
-    filename_to_cv: dict[str, CV] = {}
-    try:
-        for filename, text in cvs:
-            cv, _ = await ingest_cv(db, filename, text)
-            filename_to_cv[filename] = cv
-        await db.commit()
-    except Exception as exc:
-        import logging
-        logging.getLogger(__name__).warning("CV bank ingestion failed: %s", exc)
-
-    # 9. Update bank CVs that were pulled into this analysis.
-    try:
-        for bank_cv in bank_cv_records:
-            filename_to_cv[bank_cv.filename] = bank_cv
-            await update_bank_cv_seen(db, bank_cv)
-        await db.commit()
-    except Exception:
-        pass
-
-    # 10. Create per-candidate CVAnalysis rows (best-effort).
-    try:
-        await _persist_cv_analyses(db, analysis.id, enriched, filename_to_cv)
-    except Exception:
-        pass
-
-    # 11. Attach contact info from CV rows (never from LLM output — it saw no PII).
-    for candidate in enriched:
-        candidate.contact = _build_contact(filename_to_cv.get(candidate.filename))
-
-    return AnalyzeResponse(
-        analysis_id=analysis.id,
-        ranking=enriched,
-        job_summary=result.job_summary,
-        category=CategoryInfo(slug=category.slug, display_name=category.display_name)
-        if category else None,
-        anonymized=True,
-    )
+    return JSONResponse({"job_id": task.id, "status": "pending"}, status_code=202)
 
 
 # ── Candidate upload — Step 1: extract contact info (no DB write) ─────────────
@@ -528,89 +428,43 @@ async def upload_candidate_cv(
 
 # ── Match-job (bank-only ranking) ─────────────────────────────────────────────
 
-@app.post("/match-job", status_code=201)
-async def match_job(
-    body: MatchJobRequest,
-    db: AsyncSession = Depends(get_db),
-):
-    """Rank bank CVs against a job description without uploading new files."""
-    try:
-        job_embedding = await generate_embedding(body.job_description)
-    except Exception as e:
-        raise HTTPException(502, "Error al generar el análisis semántico. Intentá más tarde.")
+@app.post("/match-job", status_code=202)
+async def match_job(body: MatchJobRequest):
+    """Queue a bank-only CV ranking job and return a job_id immediately."""
+    from core.tasks import match_job_task
+    task = match_job_task.delay(body.job_description, body.top_n)
+    return JSONResponse({"job_id": task.id, "status": "pending"}, status_code=202)
 
-    bank_cv_records = await _search_bank(job_embedding, set(), body.top_n, db)
-    if not bank_cv_records:
-        raise HTTPException(404, "No suitable candidates found in the bank.")
 
-    bank_cvs_for_llm = [
-        {"filename": cv.filename, "text": cv.text_content}
-        for cv in bank_cv_records
-    ]
+# ── Job status endpoints ───────────────────────────────────────────────────────
 
-    # Anonymize before the LLM call.
-    anon_cvs, label_map = anonymize_cvs(
-        [{"filename": bk["filename"], "text": bk["text"], "source": "bank"} for bk in bank_cvs_for_llm]
-    )
-    anon_bank = [{"filename": c["filename"], "text": c["text"]} for c in anon_cvs]
+@app.get("/jobs/{job_id}")
+async def get_job_status(job_id: str):
+    """Poll a queued job.  Returns HTTP 200 for all states; check the 'status' field."""
+    from core.celery_app import celery_app
+    result = celery_app.AsyncResult(job_id)
+    state = result.state
 
-    try:
-        result = await rank_candidates(
-            body.job_description,
-            uploaded_cvs=[],
-            bank_cvs=anon_bank,
-        )
-    except ValidationError:
-        raise HTTPException(502, "El servicio de análisis devolvió una respuesta inesperada. Intentá de nuevo.")
-    except OpenAIError:
-        raise HTTPException(503, "El servicio de IA no está disponible. Intentá más tarde.")
+    if state == "SUCCESS":
+        return {"status": "completed", "result": result.get()}
+    if state in ("FAILURE", "REVOKED"):
+        return {"status": "failed", "error": "El análisis falló. Intentá de nuevo."}
+    # PENDING / STARTED / RETRY — still running
+    return {"status": "pending"}
 
-    # Restore real filenames before downstream processing.
-    for candidate in result.ranking:
-        candidate.filename = label_map.get(candidate.filename, candidate.filename)
 
-    bank_cv_by_filename = {cv.filename: cv for cv in bank_cv_records}
+@app.get("/jobs/{job_id}/result")
+async def get_job_result(job_id: str):
+    """Convenience endpoint: returns the full result or 404/500 without polling logic."""
+    from core.celery_app import celery_app
+    result = celery_app.AsyncResult(job_id)
+    state = result.state
 
-    enriched: list[CandidateRankingWithSource] = []
-    for candidate in result.ranking:
-        bank_cv = bank_cv_by_filename.get(candidate.filename)
-        factor = compute_recency_factor(bank_cv.created_at) if bank_cv else 1.0
-        c = _enrich_candidate(candidate, "bank", factor)
-        c.contact = _build_contact(bank_cv)
-        enriched.append(c)
-
-    enriched.sort(key=lambda c: c.score, reverse=True)
-
-    category = await get_or_create_category(db, body.job_description, llm_client)
-
-    analysis = Analysis(
-        job_description=body.job_description,
-        ranking=[c.model_dump() for c in enriched],
-        job_summary=result.job_summary,
-        model_used=settings.openai_model,
-        job_category_id=category.id if category else None,
-        anonymized=True,
-    )
-    db.add(analysis)
-    await db.commit()
-
-    filename_to_cv = {cv.filename: cv for cv in bank_cv_records}
-    try:
-        for bank_cv in bank_cv_records:
-            await update_bank_cv_seen(db, bank_cv)
-        await db.commit()
-        await _persist_cv_analyses(db, analysis.id, enriched, filename_to_cv)
-    except Exception:
-        pass
-
-    return AnalyzeResponse(
-        analysis_id=analysis.id,
-        ranking=enriched,
-        job_summary=result.job_summary,
-        category=CategoryInfo(slug=category.slug, display_name=category.display_name)
-        if category else None,
-        anonymized=True,
-    )
+    if state == "SUCCESS":
+        return result.get()
+    if state in ("FAILURE", "REVOKED"):
+        raise HTTPException(500, "El análisis falló. Intentá de nuevo.")
+    raise HTTPException(404, "El análisis todavía está en proceso.")
 
 
 # ── Feedback ──────────────────────────────────────────────────────────────────

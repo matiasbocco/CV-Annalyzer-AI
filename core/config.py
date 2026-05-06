@@ -11,5 +11,9 @@ class Settings(BaseSettings):
         "mysql+aiomysql://cvuser:cvpass@localhost:3306/cv_analyzer"
     )
 
+    # Redis URL for Celery broker and result backend.
+    # In Docker, override with redis://redis:6379/0 (service name, not localhost).
+    redis_url: str = "redis://localhost:6379/0"
+
 
 settings = Settings()

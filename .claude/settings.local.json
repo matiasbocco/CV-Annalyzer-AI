@@ -41,7 +41,15 @@
       "Bash(python -m pip show pytest)",
       "Bash(venv/Scripts/python -m pytest core/tests/test_file_extraction.py -v)",
       "Bash(venv/Scripts/pip install *)",
-      "Bash(venv/Scripts/python -m pytest core/tests/ -v)"
+      "Bash(venv/Scripts/python -m pytest core/tests/ -v)",
+      "Bash(\"venv/Scripts/pip\" install *)",
+      "Bash(\"venv/Scripts/python\" -c \"from core.celery_app import celery_app; print\\('celery_app OK:', celery_app\\)\")",
+      "Bash(\"venv/Scripts/python\" -c \"from core.tasks import analyze_cvs_task, match_job_task; print\\('tasks OK:', analyze_cvs_task, match_job_task\\)\")",
+      "Bash(\"venv/Scripts/python\" -c \"from core.main import app; print\\('main OK — routes:', [r.path for r in app.routes if hasattr\\(r,'path'\\)]\\)\")",
+      "Bash(\"venv/Scripts/python\" -m pytest core/tests/ -v)",
+      "Bash(\"venv/Scripts/python\" -c \"from core.tasks import analyze_cvs_task, match_job_task; print\\('OK'\\)\")",
+      "Bash(npm run *)",
+      "Bash(python -m pytest core/tests/ -v --tb=short)"
     ]
   }
 }

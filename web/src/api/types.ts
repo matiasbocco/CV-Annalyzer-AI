@@ -31,12 +31,6 @@ export interface CategoryInfo {
   display_name: string
 }
 
-/** Full shape returned by GET /categories — includes extra fields */
-export interface Category extends CategoryInfo {
-  description: string | null
-  required_skills: string[] | null
-}
-
 // ── Ranking / analysis ────────────────────────────────────────────────────────
 
 /**
@@ -89,6 +83,21 @@ export interface ExtractContactResponse {
   extracted_contact: Partial<ContactInfo>
   missing_fields: string[]
   filename: string
+}
+
+// ── Async job status ──────────────────────────────────────────────────────────
+
+/** Returned by POST /analyze and POST /match-job (HTTP 202). */
+export interface JobSubmitResponse {
+  job_id: string
+  status: 'pending'
+}
+
+/** Returned by GET /jobs/{job_id}. */
+export interface JobStatusResponse {
+  status: 'pending' | 'completed' | 'failed'
+  result?: AnalyzeResponse | MatchJobResponse
+  error?: string
 }
 
 // ── Feedback ──────────────────────────────────────────────────────────────────
@@ -155,12 +164,3 @@ export interface TiebreakerAnswerResponse {
   adjustments: CandidateAdjustment[]
 }
 
-/** Returned by GET /tiebreaker/{session_id} */
-export interface TiebreakerSessionResponse {
-  session_id: string
-  status: 'pending' | 'completed'
-  cluster_candidates: string[]
-  questions: TiebreakerQuestion[]
-  answers: TiebreakerAnswer[] | null
-  final_ranking: string[] | null
-}

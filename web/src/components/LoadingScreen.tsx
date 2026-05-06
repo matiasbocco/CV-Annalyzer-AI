@@ -3,12 +3,12 @@ interface Props {
 }
 
 export default function LoadingScreen({
-  text = 'Analizando CVs… puede tardar 15–30 segundos',
+  text = 'Procesando…',
 }: Props) {
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">
-      <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-      <p className="text-gray-600 animate-pulse">{text}</p>
+    <div className="min-h-screen bg-[#0A0A0F] flex flex-col items-center justify-center gap-4">
+      <div className="w-10 h-10 rounded-full border-2 border-slate-700 border-t-sky-500 animate-spin" />
+      <p className="text-slate-400 text-sm animate-pulse">{text}</p>
     </div>
   )
 }

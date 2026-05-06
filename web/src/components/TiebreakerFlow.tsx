@@ -8,8 +8,6 @@ import type {
   TiebreakerQuestion,
 } from '../api/types'
 
-// ── Phase machine ─────────────────────────────────────────────────────────────
-
 type Phase =
   | { tag: 'idle' }
   | { tag: 'loading' }
@@ -23,8 +21,6 @@ interface Props {
   ranking: Candidate[]
   onComplete: (newRanking: Candidate[]) => void
 }
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function detectCluster(ranking: Candidate[]): boolean {
   if (ranking.length < 2) return false
@@ -48,12 +44,10 @@ function buildUpdatedRanking(ranking: Candidate[], finalRanking: string[]): Cand
 }
 
 function arrow(moved: number) {
-  if (moved > 0) return { symbol: '↑', color: 'text-green-600' }
-  if (moved < 0) return { symbol: '↓', color: 'text-red-500' }
-  return { symbol: '→', color: 'text-gray-400' }
+  if (moved > 0) return { symbol: '↑', color: 'text-emerald-400' }
+  if (moved < 0) return { symbol: '↓', color: 'text-red-400' }
+  return { symbol: '→', color: 'text-slate-500' }
 }
-
-// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function TiebreakerFlow({ analysisId, ranking, onComplete }: Props) {
   const t = T[useLang()]
@@ -65,8 +59,6 @@ export default function TiebreakerFlow({ analysisId, ranking, onComplete }: Prop
 
   if (phase.tag === 'idle' && !detectCluster(ranking)) return null
   if (phase.tag === 'hidden') return null
-
-  // ── Handlers ───────────────────────────────────────────────────────────────
 
   function handleStart() {
     setPhase({ tag: 'loading' })
@@ -109,14 +101,14 @@ export default function TiebreakerFlow({ analysisId, ranking, onComplete }: Prop
 
   if (phase.tag === 'idle') {
     return (
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-center justify-between gap-4">
+      <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold text-amber-800">{t.tieTitle}</p>
-          <p className="text-xs text-amber-600 mt-0.5">{t.tieHint}</p>
+          <p className="text-sm font-semibold text-amber-300">{t.tieTitle}</p>
+          <p className="text-xs text-amber-500/80 mt-0.5">{t.tieHint}</p>
         </div>
         <button
           onClick={handleStart}
-          className="flex-shrink-0 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+          className="flex-shrink-0 bg-amber-500 hover:bg-amber-400 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
         >
           {t.tieBtn}
         </button>
@@ -128,9 +120,9 @@ export default function TiebreakerFlow({ analysisId, ranking, onComplete }: Prop
 
   if (phase.tag === 'loading') {
     return (
-      <div className="bg-white border border-gray-200 rounded-lg p-4 flex items-center gap-3">
-        <div className="w-5 h-5 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin flex-shrink-0" />
-        <p className="text-sm text-gray-600">{t.tieLoadingQ}</p>
+      <div className="bg-[#111118] border border-slate-800 rounded-xl p-4 flex items-center gap-3">
+        <div className="w-5 h-5 border-2 border-slate-700 border-t-sky-500 rounded-full animate-spin flex-shrink-0" />
+        <p className="text-sm text-slate-400">{t.tieLoadingQ}</p>
       </div>
     )
   }
@@ -142,12 +134,12 @@ export default function TiebreakerFlow({ analysisId, ranking, onComplete }: Prop
     const allAnswered = questions.every(q => answers[q.id])
 
     return (
-      <div className="bg-white border border-amber-200 rounded-lg p-5 space-y-5">
-        <p className="text-sm font-semibold text-gray-800">{t.tiePrompt}</p>
+      <div className="bg-[#111118] border border-amber-500/30 rounded-xl p-5 space-y-5">
+        <p className="text-sm font-semibold text-slate-200">{t.tiePrompt}</p>
 
         {questions.map((q, qi) => (
           <div key={q.id} className="space-y-2">
-            <p className="text-sm font-medium text-gray-700">{qi + 1}. {q.text}</p>
+            <p className="text-sm font-medium text-slate-300">{qi + 1}. {q.text}</p>
             <div className="space-y-1.5 pl-2">
               {q.options.map(opt => (
                 <label key={opt.id} className="flex items-start gap-2.5 cursor-pointer group">
@@ -157,9 +149,11 @@ export default function TiebreakerFlow({ analysisId, ranking, onComplete }: Prop
                     value={opt.id}
                     checked={answers[q.id] === opt.id}
                     onChange={() => setAnswers(prev => ({ ...prev, [q.id]: opt.id }))}
-                    className="mt-0.5 cursor-pointer"
+                    className="mt-0.5 cursor-pointer accent-sky-500"
                   />
-                  <span className="text-sm text-gray-700 group-hover:text-gray-900">{opt.text}</span>
+                  <span className="text-sm text-slate-400 group-hover:text-slate-200 transition-colors">
+                    {opt.text}
+                  </span>
                 </label>
               ))}
             </div>
@@ -169,7 +163,7 @@ export default function TiebreakerFlow({ analysisId, ranking, onComplete }: Prop
         <button
           onClick={handleSubmitAnswers}
           disabled={!allAnswered}
-          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold py-2 rounded-lg text-sm transition-colors"
+          className="w-full bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-700 hover:to-sky-600 disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-500 text-white font-semibold py-2 rounded-lg text-sm transition-all"
         >
           {t.tieConfirm}
         </button>
@@ -181,9 +175,9 @@ export default function TiebreakerFlow({ analysisId, ranking, onComplete }: Prop
 
   if (phase.tag === 'submitting') {
     return (
-      <div className="bg-white border border-gray-200 rounded-lg p-4 flex items-center gap-3">
-        <div className="w-5 h-5 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin flex-shrink-0" />
-        <p className="text-sm text-gray-600">{t.tieRecalc}</p>
+      <div className="bg-[#111118] border border-slate-800 rounded-xl p-4 flex items-center gap-3">
+        <div className="w-5 h-5 border-2 border-slate-700 border-t-sky-500 rounded-full animate-spin flex-shrink-0" />
+        <p className="text-sm text-slate-400">{t.tieRecalc}</p>
       </div>
     )
   }
@@ -194,11 +188,11 @@ export default function TiebreakerFlow({ analysisId, ranking, onComplete }: Prop
     const { adjustments, finalRanking } = phase
 
     return (
-      <div className="bg-white border border-green-200 rounded-lg p-5 space-y-4">
-        <p className="text-sm font-semibold text-green-800">{t.tieDone}</p>
+      <div className="bg-[#111118] border border-emerald-500/30 rounded-xl p-5 space-y-4">
+        <p className="text-sm font-semibold text-emerald-400">{t.tieDone}</p>
 
         {adjustments.filter(a => a.moved !== 0).length === 0 ? (
-          <p className="text-xs text-gray-500">{t.tieNoChange}</p>
+          <p className="text-xs text-slate-500">{t.tieNoChange}</p>
         ) : (
           <div className="space-y-1.5">
             {adjustments.map(a => {
@@ -206,8 +200,8 @@ export default function TiebreakerFlow({ analysisId, ranking, onComplete }: Prop
               return (
                 <div key={a.filename} className="flex items-center gap-2 text-sm">
                   <span className={`text-base font-bold ${color}`}>{symbol}</span>
-                  <span className="text-gray-700 font-medium">{a.filename}</span>
-                  <span className="text-xs text-gray-400">
+                  <span className="text-slate-300 font-medium">{a.filename}</span>
+                  <span className="text-xs text-slate-600">
                     {a.original_position} → {a.new_position}
                   </span>
                 </div>
@@ -218,7 +212,7 @@ export default function TiebreakerFlow({ analysisId, ranking, onComplete }: Prop
 
         <button
           onClick={() => onComplete(buildUpdatedRanking(ranking, finalRanking))}
-          className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-lg text-sm transition-colors"
+          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2 rounded-lg text-sm transition-colors"
         >
           {t.tieView}
         </button>
