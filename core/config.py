@@ -15,5 +15,10 @@ class Settings(BaseSettings):
     # In Docker, override with redis://redis:6379/0 (service name, not localhost).
     redis_url: str = "redis://localhost:6379/0"
 
+    # Authentication
+    secret_key: str
+    access_token_expire_minutes: int = 60
+    refresh_token_expire_days: int = 7
+
 
 settings = Settings()

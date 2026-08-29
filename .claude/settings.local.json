@@ -49,7 +49,31 @@
       "Bash(\"venv/Scripts/python\" -m pytest core/tests/ -v)",
       "Bash(\"venv/Scripts/python\" -c \"from core.tasks import analyze_cvs_task, match_job_task; print\\('OK'\\)\")",
       "Bash(npm run *)",
-      "Bash(python -m pytest core/tests/ -v --tb=short)"
+      "Bash(python -m pytest core/tests/ -v --tb=short)",
+      "Bash(python *)",
+      "Bash(alembic revision *)",
+      "Bash(net start *)",
+      "Bash(sc query *)",
+      "Bash(mysqld --version)",
+      "Bash(docker start cv-analyzer-db *)",
+      "Bash(grep -v \"^$\")",
+      "Bash(alembic upgrade *)",
+      "Bash(alembic heads *)",
+      "Bash(alembic current *)",
+      "Bash(alembic history *)",
+      "Bash(alembic merge *)",
+      "Bash(uvicorn core.main:app --reload --port 8000)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/docs)",
+      "Bash(celery -A core.main:celery_app worker --loglevel=info --pool=solo)",
+      "Bash(where celery *)",
+      "Bash(ls -d frontend* static* public* templates*)",
+      "Bash(grep -r \"StaticFiles\\\\|Jinja\\\\|templates\\\\|mount\" core/main.py)",
+      "Bash(curl *)",
+      "Bash(npx vite *)",
+      "Bash(node node_modules/vite/bin/vite.js --port 5173)",
+      "Bash(docker compose *)",
+      "Bash(venv\\\\Scripts\\\\python.exe -m core.scripts.seed_admin)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({**d.get\\('dependencies',{}\\), **d.get\\('devDependencies',{}\\)}, indent=2\\)\\)\")"
     ]
   }
 }

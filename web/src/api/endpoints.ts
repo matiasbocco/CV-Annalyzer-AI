@@ -1,15 +1,50 @@
 import client from './client'
 import type {
+  AdminCV,
+  AdminUser,
   ContactInfo,
+  CostsResponse,
+  CreateUserResponse,
+  CVListResponse,
   ExtractContactResponse,
   FeedbackResponse,
   JobStatusResponse,
   JobSubmitResponse,
+  LoginResponse,
+  MetricsResponse,
+  ResetPasswordResponse,
   StartTiebreakerResponse,
   TiebreakerAnswer,
   TiebreakerAnswerResponse,
   UploadResponse,
 } from './types'
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
+export async function login(email: string, password: string): Promise<LoginResponse> {
+  const { data } = await client.post<LoginResponse>('/auth/login', { email, password })
+  return data
+}
+
+export async function logout(): Promise<void> {
+  await client.post('/auth/logout')
+}
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  await client.post('/auth/change-password', {
+    current_password: currentPassword,
+    new_password: newPassword,
+  })
+}
+
+/** Attempts a silent token refresh using the httpOnly cookie. Throws on failure. */
+export async function refreshToken(): Promise<LoginResponse> {
+  const { data } = await client.post<LoginResponse>('/auth/refresh')
+  return data
+}
 
 // ── Analysis ──────────────────────────────────────────────────────────────────
 
@@ -102,6 +137,56 @@ export async function submitTiebreakerAnswers(
     `/tiebreaker/${sessionId}/answer`,
     { answers },
   )
+  return data
+}
+
+// ── Admin ──────────────────────────────────────────────────────────────────────
+
+export async function adminListUsers(): Promise<AdminUser[]> {
+  const { data } = await client.get<AdminUser[]>('/admin/users')
+  return data
+}
+
+export async function adminCreateUser(
+  email: string,
+  role: 'admin' | 'recruiter',
+): Promise<CreateUserResponse> {
+  const { data } = await client.post<CreateUserResponse>('/admin/users', { email, role })
+  return data
+}
+
+export async function adminPatchUser(
+  userId: string,
+  patch: { is_active?: boolean; role?: 'admin' | 'recruiter' },
+): Promise<AdminUser> {
+  const { data } = await client.patch<AdminUser>(`/admin/users/${userId}`, patch)
+  return data
+}
+
+export async function adminResetPassword(userId: string): Promise<ResetPasswordResponse> {
+  const { data } = await client.post<ResetPasswordResponse>(
+    `/admin/users/${userId}/reset-password`,
+  )
+  return data
+}
+
+export async function adminGetMetrics(): Promise<MetricsResponse> {
+  const { data } = await client.get<MetricsResponse>('/admin/metrics')
+  return data
+}
+
+export async function adminGetCosts(): Promise<CostsResponse> {
+  const { data } = await client.get<CostsResponse>('/admin/costs')
+  return data
+}
+
+export async function adminListCVs(page = 1): Promise<CVListResponse> {
+  const { data } = await client.get<CVListResponse>(`/admin/cvs?page=${page}`)
+  return data
+}
+
+export async function adminExpireCVs(): Promise<{ expired: number }> {
+  const { data } = await client.post<{ expired: number }>('/admin/expire-cvs')
   return data
 }
 

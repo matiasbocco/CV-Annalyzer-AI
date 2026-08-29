@@ -1,3 +1,4 @@
+import enum
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -6,6 +7,7 @@ from sqlalchemy import (
     JSON,
     Boolean,
     DateTime,
+    Enum,
     Float,
     ForeignKey,
     Index,
@@ -19,6 +21,47 @@ from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
 from core.db.database import Base
+
+
+# ── Enums ─────────────────────────────────────────────────────────────────────
+
+class UserRole(str, enum.Enum):
+    admin = "admin"
+    recruiter = "recruiter"
+
+
+# ── Organizations ─────────────────────────────────────────────────────────────
+
+class Organization(Base):
+    """Organization for multi-tenancy support."""
+    __tablename__ = "organizations"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
+
+
+# ── Users ─────────────────────────────────────────────────────────────────────
+
+class User(Base):
+    """User accounts for authentication and authorization."""
+    __tablename__ = "users"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[UserRole] = mapped_column(Enum(UserRole), nullable=False)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("organizations.id"), nullable=False, index=True
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    must_change_password: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    last_login: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), nullable=False
+    )
 
 
 # ── CV bank (permanent candidate information) ─────────────────────────────────
@@ -67,6 +110,11 @@ class CV(Base):
     availability: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     contact_extracted_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime, nullable=True
+    )
+
+    # ── Multi-tenancy ─────────────────────────────────────────────────────
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        Uuid, ForeignKey("organizations.id"), nullable=True, index=True
     )
 
 
@@ -133,6 +181,9 @@ class Analysis(Base):
         Uuid, ForeignKey("job_categories.id"), nullable=True
     )
     anonymized: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        Uuid, ForeignKey("organizations.id"), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 

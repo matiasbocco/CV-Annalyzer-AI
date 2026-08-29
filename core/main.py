@@ -59,6 +59,11 @@ from core.services.tiebreaker_service import (
     generate_questions,
 )
 from core.services.ttl_service import expire_old_cvs
+from core.routers.auth_router import router as auth_router
+from core.routers.protected_auth_router import router as protected_auth_router
+from core.routers.admin_router import router as admin_router
+from core.dependencies import require_recruiter
+from core.db.models import User
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -111,9 +116,15 @@ app.add_middleware(
     allow_origins=["http://localhost:5173"],
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_credentials=True,  # Required for httpOnly cookies
 )
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+# Register routers
+app.include_router(auth_router)
+app.include_router(protected_auth_router)
+app.include_router(admin_router)
 
 
 # ── Request bodies ────────────────────────────────────────────────────────────
@@ -276,7 +287,10 @@ async def test_llm():
 # ── Categories ────────────────────────────────────────────────────────────────
 
 @app.get("/categories")
-async def list_categories(db: AsyncSession = Depends(get_db)):
+async def list_categories(
+    current_user: User = Depends(require_recruiter),
+    db: AsyncSession = Depends(get_db),
+):
     rows = (
         await db.execute(select(JobCategory).order_by(JobCategory.display_name))
     ).scalars().all()
@@ -298,6 +312,7 @@ async def analyze(
     files: Annotated[list[UploadFile], File(description="One or more CV files (PDF, DOCX, JPG, PNG, WEBP)")],
     job_description: Annotated[str, Form(description="Job description text")],
     include_bank: Annotated[bool, Form(description="Merge top bank candidates into ranking")] = False,
+    current_user: User = Depends(require_recruiter),
 ):
     # 1. Early validation (no IO needed).
     if len(files) > _MAX_UPLOAD_FILES:
@@ -429,7 +444,10 @@ async def upload_candidate_cv(
 # ── Match-job (bank-only ranking) ─────────────────────────────────────────────
 
 @app.post("/match-job", status_code=202)
-async def match_job(body: MatchJobRequest):
+async def match_job(
+    body: MatchJobRequest,
+    current_user: User = Depends(require_recruiter),
+):
     """Queue a bank-only CV ranking job and return a job_id immediately."""
     from core.tasks import match_job_task
     task = match_job_task.delay(body.job_description, body.top_n)
@@ -439,7 +457,10 @@ async def match_job(body: MatchJobRequest):
 # ── Job status endpoints ───────────────────────────────────────────────────────
 
 @app.get("/jobs/{job_id}")
-async def get_job_status(job_id: str):
+async def get_job_status(
+    job_id: str,
+    current_user: User = Depends(require_recruiter),
+):
     """Poll a queued job.  Returns HTTP 200 for all states; check the 'status' field."""
     from core.celery_app import celery_app
     result = celery_app.AsyncResult(job_id)
@@ -454,7 +475,10 @@ async def get_job_status(job_id: str):
 
 
 @app.get("/jobs/{job_id}/result")
-async def get_job_result(job_id: str):
+async def get_job_result(
+    job_id: str,
+    current_user: User = Depends(require_recruiter),
+):
     """Convenience endpoint: returns the full result or 404/500 without polling logic."""
     from core.celery_app import celery_app
     result = celery_app.AsyncResult(job_id)
@@ -473,6 +497,7 @@ async def get_job_result(job_id: str):
 async def submit_feedback(
     analysis_id: uuid.UUID,
     body: FeedbackRequest,
+    current_user: User = Depends(require_recruiter),
     db: AsyncSession = Depends(get_db),
 ):
     existing = (
@@ -494,6 +519,7 @@ async def submit_feedback(
 @app.post("/analyses/{analysis_id}/tiebreaker")
 async def start_tiebreaker(
     analysis_id: uuid.UUID,
+    current_user: User = Depends(require_recruiter),
     db: AsyncSession = Depends(get_db),
 ):
     analysis = (
@@ -535,6 +561,7 @@ async def start_tiebreaker(
 async def answer_tiebreaker(
     session_id: uuid.UUID,
     body: TiebreakerAnswerRequest,
+    current_user: User = Depends(require_recruiter),
     db: AsyncSession = Depends(get_db),
 ):
     session = (
@@ -607,9 +634,3 @@ async def get_tiebreaker(
     )
 
 
-# ── Admin ─────────────────────────────────────────────────────────────────────
-
-@app.post("/admin/expire-cvs")
-async def admin_expire_cvs(db: AsyncSession = Depends(get_db)):
-    count = await expire_old_cvs(db)
-    return {"expired": count}

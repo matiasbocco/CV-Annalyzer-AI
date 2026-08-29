@@ -1,3 +1,115 @@
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
+export interface UserInfo {
+  id: string
+  email: string
+  role: 'admin' | 'recruiter'
+}
+
+export interface LoginResponse {
+  access_token: string
+  token_type: 'bearer'
+  must_change_password: boolean
+  user: UserInfo
+}
+
+export interface RefreshResponse {
+  access_token: string
+  token_type: 'bearer'
+  user: UserInfo
+}
+
+// ── Admin — users ─────────────────────────────────────────────────────────────
+
+export interface AdminUser {
+  id: string
+  email: string
+  role: 'admin' | 'recruiter'
+  is_active: boolean
+  last_login: string | null
+  created_at: string
+  analysis_count: number
+}
+
+export interface CreateUserResponse {
+  id: string
+  email: string
+  role: string
+  temporary_password: string
+  must_change_password: boolean
+}
+
+export interface ResetPasswordResponse {
+  new_password: string
+  must_change_password: boolean
+}
+
+// ── Admin — metrics ───────────────────────────────────────────────────────────
+
+export interface DayCount {
+  date: string
+  count: number
+}
+
+export interface CategoryCount {
+  slug: string
+  display_name: string
+  count: number
+}
+
+export interface MetricsResponse {
+  total_analyses: number
+  analyses_last_30_days: number
+  analyses_by_day: DayCount[]
+  top_categories: CategoryCount[]
+  average_rating: number | null
+  total_cvs_in_bank: number
+  active_cvs: number
+  expiring_soon_cvs: number
+  expired_cvs: number
+  total_users: number
+  active_users: number
+}
+
+// ── Admin — costs ─────────────────────────────────────────────────────────────
+
+export interface CostsResponse {
+  total_analyses: number
+  estimated_ranking_calls: number
+  estimated_category_calls: number
+  estimated_contact_extraction_calls: number
+  estimated_embedding_calls: number
+  estimated_total_cost_usd: number
+  cost_breakdown: {
+    ranking: number
+    category: number
+    contact: number
+    embeddings: number
+  }
+}
+
+// ── Admin — CV bank ───────────────────────────────────────────────────────────
+
+export interface AdminCV {
+  id: string
+  filename: string
+  full_name: string | null
+  email: string | null
+  created_at: string
+  last_seen_at: string
+  times_matched: number
+  is_expired: boolean
+  days_until_expiry: number
+}
+
+export interface CVListResponse {
+  items: AdminCV[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
 // ── Primitives ────────────────────────────────────────────────────────────────
 
 export type Nivel = 'bajo' | 'medio' | 'alto' | 'excelente'
