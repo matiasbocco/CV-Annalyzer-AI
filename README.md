@@ -50,7 +50,7 @@ CV Analyzer AI is a full-stack application that automates the initial CV screeni
 
 The system follows a producer-consumer pattern. A request to `/analyze` hits FastAPI, which extracts text from the uploaded files synchronously (fails fast, keeps binary data out of the queue), then enqueues a Celery task and returns HTTP 202 with a `job_id`. The Celery worker runs the full pipeline: anonymization → LLM ranking → recency factor application → persistence to MySQL and ChromaDB. The frontend polls `GET /jobs/{job_id}` every two seconds and stops when the status becomes `completed` or `failed`.
 
-See the full flow and database schema in [docs/architecture.md](docs/architecture.md).
+SEE THE FULL FLOW AND DATABASE SCHEMA IN [docs/architecture.md](docs/architecture.md).
 
 **Key design decisions:**
 
