@@ -3,6 +3,8 @@ import type { ContactInfo, JobStatusResponse, TiebreakerAnswer } from './types'
 import {
   analyzeCVs,
   extractContact,
+  getAnalysisDetail,
+  getAnalysisHistory,
   getJobStatus,
   matchJob,
   startTiebreaker,
@@ -90,6 +92,25 @@ export function useSubmitTiebreakerAnswers() {
 }
 
 // ── Queries — passive data fetching ──────────────────────────────────────────
+
+// ── Analysis history ──────────────────────────────────────────────────────────
+
+export function useAnalysisHistory(page: number, pageSize = 20) {
+  return useQuery({
+    queryKey: ['analysisHistory', page, pageSize],
+    queryFn: () => getAnalysisHistory(page, pageSize),
+    staleTime: 30_000,
+  })
+}
+
+export function useAnalysisDetail(analysisId: string | null) {
+  return useQuery({
+    queryKey: ['analysisDetail', analysisId],
+    queryFn: () => getAnalysisDetail(analysisId!),
+    enabled: !!analysisId,
+    staleTime: 60_000,
+  })
+}
 
 /**
  * Polls GET /jobs/{jobId} every 2 seconds while status is "pending".

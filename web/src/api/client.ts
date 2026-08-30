@@ -4,7 +4,14 @@ import { clearToken, getToken, setToken } from '../auth'
 const BASE_URL = 'http://localhost:8000'
 
 // Separate instance used ONLY for token refresh to avoid interceptor recursion.
+// No request/response interceptors — failure propagates as-is to the caller.
 const _refreshClient = axios.create({ baseURL: BASE_URL, withCredentials: true })
+
+/** Silent token refresh using the httpOnly cookie. Throws on any failure (401, network, etc.). */
+export async function refreshSession(): Promise<import('../api/types').RefreshResponse> {
+  const { data } = await _refreshClient.post<import('../api/types').RefreshResponse>('/auth/refresh')
+  return data
+}
 
 const client = axios.create({
   baseURL: BASE_URL,

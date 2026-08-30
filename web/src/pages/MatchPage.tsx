@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useMatchJob, useJobStatus } from '../api/hooks'
 import { cn, detectLang, getErrorMessage } from '../lib/utils'
 import type { Lang } from '../lib/utils'
@@ -6,58 +6,7 @@ import { LangProvider, T } from '../LangContext'
 import type { AnalyzeResponse } from '../api/types'
 import RankingTable from '../components/RankingTable'
 import CandidateCard from '../components/CandidateCard'
-
-// ── Async loading screen ──────────────────────────────────────────────────────
-
-const STEPS = [
-  { icon: '🔍', text: 'Buscando candidatos en el banco...' },
-  { icon: '🤖', text: 'Analizando con IA...' },
-  { icon: '💾', text: 'Guardando resultados...' },
-]
-
-function AsyncLoadingScreen() {
-  const [step, setStep] = useState(0)
-  useEffect(() => {
-    const id = setInterval(
-      () => setStep(p => Math.min(p + 1, STEPS.length - 1)),
-      8000,
-    )
-    return () => clearInterval(id)
-  }, [])
-
-  return (
-    <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center p-4">
-      <div className="w-full max-w-sm bg-[#111118] border border-slate-800 rounded-2xl p-8 space-y-6">
-        <div className="text-center space-y-1">
-          <p className="text-base font-semibold text-slate-200">Buscando candidatos</p>
-          <p className="text-xs text-slate-500">Este proceso puede tomar entre 15 y 40 segundos</p>
-        </div>
-        <div className="space-y-2">
-          {STEPS.map((s, i) => (
-            <div
-              key={i}
-              className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-500',
-                i === step
-                  ? 'bg-sky-500/10 text-sky-400 font-medium'
-                  : i < step
-                    ? 'text-slate-600'
-                    : 'text-slate-700',
-              )}
-            >
-              <span className={i === step ? 'animate-bounce' : ''}>{s.icon}</span>
-              <span className="flex-1">{s.text}</span>
-              {i < step && <span className="text-emerald-500 text-xs">✓</span>}
-              {i === step && (
-                <span className="w-3.5 h-3.5 rounded-full border-2 border-sky-700 border-t-sky-400 animate-spin flex-shrink-0" />
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
+import AsyncLoadingScreen from '../components/AsyncLoadingScreen'
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
@@ -108,7 +57,7 @@ export default function MatchPage() {
       jobStatus.data?.status !== 'completed' &&
       jobStatus.data?.status !== 'failed')
 
-  if (isProcessing) return <AsyncLoadingScreen />
+  if (isProcessing) return <AsyncLoadingScreen mode="match" />
 
   if (match.isError || (jobId && jobStatus.data?.status === 'failed')) {
     const msg = match.isError

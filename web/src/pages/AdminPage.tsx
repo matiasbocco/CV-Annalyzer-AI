@@ -128,6 +128,8 @@ function UsuariosTab() {
   const [showCreate, setShowCreate] = useState(false)
   const [newEmail, setNewEmail] = useState('')
   const [newRole, setNewRole] = useState<'admin' | 'recruiter'>('recruiter')
+  const [newFirstName, setNewFirstName] = useState('')
+  const [newLastName, setNewLastName] = useState('')
   const [creating, setCreating] = useState(false)
   const [createdPassword, setCreatedPassword] = useState<string | null>(null)
 
@@ -173,11 +175,13 @@ function UsuariosTab() {
     if (!newEmail) return
     setCreating(true)
     try {
-      const res = await adminCreateUser(newEmail, newRole)
+      const res = await adminCreateUser(newEmail, newRole, newFirstName, newLastName)
       setCreatedPassword(res.temporary_password)
       setShowCreate(false)
       setNewEmail('')
       setNewRole('recruiter')
+      setNewFirstName('')
+      setNewLastName('')
       load()
     } catch (err: unknown) {
       const msg =
@@ -223,7 +227,7 @@ function UsuariosTab() {
           <table className="w-full text-sm text-left">
             <thead>
               <tr className="border-b border-slate-800">
-                {['Email', 'Rol', 'Estado', 'Último login', 'Análisis', 'Acciones'].map((h) => (
+                {['Nombre', 'Email', 'Rol', 'Estado', 'Último login', 'Análisis', 'Acciones'].map((h) => (
                   <th key={h} className="pb-2 pr-4 text-slate-400 font-medium whitespace-nowrap">
                     {h}
                   </th>
@@ -233,6 +237,11 @@ function UsuariosTab() {
             <tbody>
               {users.map((u) => (
                 <tr key={u.id} className="border-b border-slate-800/50 hover:bg-slate-800/20">
+                  <td className="py-3 pr-4 text-slate-300 whitespace-nowrap">
+                    {u.first_name || u.last_name
+                      ? `${u.first_name ?? ''} ${u.last_name ?? ''}`.trim()
+                      : <span className="text-slate-600">—</span>}
+                  </td>
                   <td className="py-3 pr-4 text-slate-200">{u.email}</td>
                   <td className="py-3 pr-4">
                     <span
@@ -285,6 +294,28 @@ function UsuariosTab() {
       {showCreate && (
         <Modal title="Nuevo usuario" onClose={() => setShowCreate(false)}>
           <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm text-slate-300 mb-1">Nombre</label>
+                <input
+                  type="text"
+                  value={newFirstName}
+                  onChange={(e) => setNewFirstName(e.target.value)}
+                  className="w-full rounded-lg bg-slate-800 border border-slate-700 text-slate-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  placeholder="María"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-300 mb-1">Apellido</label>
+                <input
+                  type="text"
+                  value={newLastName}
+                  onChange={(e) => setNewLastName(e.target.value)}
+                  className="w-full rounded-lg bg-slate-800 border border-slate-700 text-slate-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  placeholder="García"
+                />
+              </div>
+            </div>
             <div>
               <label className="block text-sm text-slate-300 mb-1">Email</label>
               <input
@@ -672,7 +703,7 @@ const COST_ROWS: {
   unit: number
   breakdownKey: keyof CostsResponse['cost_breakdown']
 }[] = [
-  { label: 'Ranking (GPT-4o mini)', key: 'estimated_ranking_calls', unit: 0.005, breakdownKey: 'ranking' },
+  { label: 'Ranking (IA)', key: 'estimated_ranking_calls', unit: 0.005, breakdownKey: 'ranking' },
   { label: 'Clasificación de categoría', key: 'estimated_category_calls', unit: 0.001, breakdownKey: 'category' },
   { label: 'Extracción de contacto', key: 'estimated_contact_extraction_calls', unit: 0.001, breakdownKey: 'contact' },
   { label: 'Embeddings', key: 'estimated_embedding_calls', unit: 0.0001, breakdownKey: 'embeddings' },

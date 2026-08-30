@@ -8,6 +8,7 @@ import UploadPage from './pages/UploadPage'
 import LoginPage from './pages/LoginPage'
 import ChangePasswordPage from './pages/ChangePasswordPage'
 import AdminPage from './pages/AdminPage'
+import HistoryPage from './pages/HistoryPage'
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/change-password" element={<><NavBar /><ChangePasswordPage /></>} />
           <Route path="/" element={<><NavBar /><AnalyzePage /></>} />
           <Route path="/match" element={<><NavBar /><MatchPage /></>} />
+          <Route path="/history" element={<><NavBar /><HistoryPage /></>} />
         </Route>
 
         {/* Admin-only routes — redirect recruiters to / */}

@@ -4,9 +4,10 @@ import { clearToken, getToken, getUser } from '../auth'
 import { logout } from '../api/endpoints'
 
 const LINKS = [
-  { to: '/',       label: 'Analizar CVs',    end: true  },
-  { to: '/match',  label: 'Buscar en banco', end: false },
-  { to: '/upload', label: 'Subir CV',        end: false },
+  { to: '/',         label: 'Analizar CVs',    end: true  },
+  { to: '/match',    label: 'Buscar en banco', end: false },
+  { to: '/history',  label: 'Historial',       end: false },
+  { to: '/upload',   label: 'Subir CV',        end: false },
 ]
 
 export default function NavBar() {
@@ -68,7 +69,11 @@ export default function NavBar() {
           <div className="ml-auto flex items-center gap-3">
             {user && (
               <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-400">{user.email}</span>
+                <span className="text-xs text-slate-400">
+                  {user.first_name
+                    ? `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}`
+                    : user.email}
+                </span>
                 <span
                   className={cn(
                     'text-xs font-medium px-1.5 py-0.5 rounded',

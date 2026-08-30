@@ -5,6 +5,8 @@ export interface UserInfo {
   id: string
   email: string
   role: 'admin' | 'recruiter'
+  first_name: string | null
+  last_name: string | null
 }
 
 let _accessToken: string | null = null

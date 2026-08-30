@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Copy, MessageCircle, ExternalLink, Globe } from 'lucide-react'
 import { cn, formatScore, getNivelColor } from '../lib/utils'
 import { T, useLang } from '../LangContext'
 import type { Availability, Candidate, ContactInfo } from '../api/types'
@@ -34,14 +35,128 @@ export function SourceBadge({
   )
 }
 
+// ── PillButton ────────────────────────────────────────────────────────────────
+
+type PillVariant = 'email' | 'whatsapp' | 'linkedin' | 'portfolio'
+
+const PILL_HOVER: Record<PillVariant, string> = {
+  email:     '#60a5fa',
+  whatsapp:  '#4ade80',
+  linkedin:  '#60a5fa',
+  portfolio: '#60a5fa',
+}
+
+// Icon wrapper: forces the SVG to be a block-level flex item so the browser
+// doesn't apply inline-baseline descender spacing, which renders as a thin
+// white rectangle below small SVG icons inside flex containers.
+function IconWrap({ children }: { children: React.ReactNode }) {
+  return (
+    <span style={{ display: 'flex', alignItems: 'center', flexShrink: 0, lineHeight: 0 }}>
+      {children}
+    </span>
+  )
+}
+
+function PillButton({
+  icon,
+  label,
+  variant,
+  onClick,
+  href,
+  active,
+  activeLabel,
+  activeColor,
+}: {
+  icon: React.ReactNode
+  label: string
+  variant: PillVariant
+  onClick?: () => void
+  href?: string
+  active?: boolean
+  activeLabel?: string
+  activeColor?: string
+}) {
+  const [hovered, setHovered] = useState(false)
+
+  const style: React.CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 5,
+    padding: '4px 12px',
+    borderRadius: 9999,
+    fontSize: 12,
+    fontWeight: 500,
+    cursor: 'pointer',
+    transition: 'all 0.15s',
+    background: hovered ? '#1e3a5f' : '#1e2a3d',
+    // 1px border (not 0.5px) — sub-pixel borders render as white hairlines in
+    // Safari and Firefox at certain zoom levels.
+    border: `1px solid ${hovered ? '#3b82f640' : '#2a3447'}`,
+    color: active && activeColor ? activeColor : hovered ? PILL_HOVER[variant] : '#94a3b8',
+    textDecoration: 'none',
+    whiteSpace: 'nowrap' as const,
+  }
+
+  if (href) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={style}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
+        <IconWrap>{icon}</IconWrap>
+        {label}
+      </a>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={style}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <IconWrap>{icon}</IconWrap>
+      {active ? (activeLabel ?? label) : label}
+    </button>
+  )
+}
+
 // ── ContactSection ────────────────────────────────────────────────────────────
 
 function ContactSection({ contact }: { contact: ContactInfo }) {
   const t = T[useLang()]
+  const [copied, setCopied] = useState(false)
   const hasAny = contact.email || contact.phone || contact.location || contact.availability
   if (!hasAny) return null
 
   const phoneDigits = contact.phone?.replace(/\D/g, '') ?? ''
+
+  async function handleCopy() {
+    if (!contact.email) return
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(contact.email)
+      } else {
+        // Fallback for non-HTTPS or browsers that block the Clipboard API
+        const el = document.createElement('textarea')
+        el.value = contact.email
+        el.style.cssText = 'position:fixed;opacity:0;pointer-events:none'
+        document.body.appendChild(el)
+        el.focus()
+        el.select()
+        document.execCommand('copy')
+        document.body.removeChild(el)
+      }
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch { /* clipboard completely unavailable */ }
+  }
 
   return (
     <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-3 space-y-2">
@@ -62,36 +177,40 @@ function ContactSection({ contact }: { contact: ContactInfo }) {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {contact.email && <CopyEmailButton email={contact.email} />}
+        {contact.email && (
+          <PillButton
+            icon={<Copy size={14} strokeWidth={1.75} />}
+            label={t.copyEmail}
+            variant="email"
+            onClick={handleCopy}
+            active={copied}
+            activeLabel="¡Copiado!"
+            activeColor="#4ade80"
+          />
+        )}
         {contact.linkedin_url && (
-          <a
+          <PillButton
+            icon={<ExternalLink size={14} strokeWidth={1.75} />}
+            label="LinkedIn"
+            variant="linkedin"
             href={contact.linkedin_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs border border-slate-700 bg-slate-800 text-slate-400 px-2.5 py-1 rounded hover:bg-slate-700 hover:text-slate-200 transition-colors"
-          >
-            in LinkedIn
-          </a>
+          />
         )}
         {phoneDigits && (
-          <a
+          <PillButton
+            icon={<MessageCircle size={14} strokeWidth={1.75} />}
+            label="WhatsApp"
+            variant="whatsapp"
             href={`https://wa.me/${phoneDigits}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs border border-slate-700 bg-slate-800 text-slate-400 px-2.5 py-1 rounded hover:bg-slate-700 hover:text-slate-200 transition-colors"
-          >
-            📱 WhatsApp
-          </a>
+          />
         )}
         {contact.portfolio_url && (
-          <a
+          <PillButton
+            icon={<Globe size={14} strokeWidth={1.75} />}
+            label="Ver portfolio"
+            variant="portfolio"
             href={contact.portfolio_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs border border-slate-700 bg-slate-800 text-slate-400 px-2.5 py-1 rounded hover:bg-slate-700 hover:text-slate-200 transition-colors"
-          >
-            🔗 Portfolio
-          </a>
+          />
         )}
       </div>
     </div>
@@ -116,30 +235,6 @@ function BulletList({ title, items, color }: { title: string; items: string[]; c
         <p className="text-xs text-slate-600">—</p>
       )}
     </div>
-  )
-}
-
-// ── CopyEmailButton ───────────────────────────────────────────────────────────
-
-function CopyEmailButton({ email }: { email: string }) {
-  const t = T[useLang()]
-  const [copied, setCopied] = useState(false)
-
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(email)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch { /* clipboard unavailable */ }
-  }
-
-  return (
-    <button
-      onClick={handleCopy}
-      className="text-xs border border-slate-700 bg-slate-800 text-slate-400 px-2.5 py-1 rounded hover:bg-slate-700 hover:text-slate-200 transition-colors"
-    >
-      {copied ? t.copied : t.copyEmail}
-    </button>
   )
 }
 

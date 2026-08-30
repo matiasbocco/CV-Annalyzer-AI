@@ -38,6 +38,8 @@ class UserInfo(BaseModel):
     id: str
     email: str
     role: str
+    first_name: str | None = None
+    last_name: str | None = None
 
 
 class LoginResponse(BaseModel):
@@ -117,7 +119,13 @@ async def login(
     return LoginResponse(
         access_token=access_token,
         must_change_password=user.must_change_password,
-        user=UserInfo(id=str(user.id), email=user.email, role=user.role.value),
+        user=UserInfo(
+            id=str(user.id),
+            email=user.email,
+            role=user.role.value,
+            first_name=user.first_name,
+            last_name=user.last_name,
+        ),
     )
 
 
@@ -163,7 +171,13 @@ async def refresh_token(
 
     return RefreshResponse(
         access_token=new_access_token,
-        user=UserInfo(id=str(user.id), email=user.email, role=user.role.value),
+        user=UserInfo(
+            id=str(user.id),
+            email=user.email,
+            role=user.role.value,
+            first_name=user.first_name,
+            last_name=user.last_name,
+        ),
     )
 
 

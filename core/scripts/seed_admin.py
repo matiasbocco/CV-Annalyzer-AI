@@ -45,6 +45,8 @@ async def seed_admin():
                 email=admin_email,
                 hashed_password=hash_password(admin_password),
                 role=UserRole.admin,
+                first_name="Admin",
+                last_name="Sistema",
                 organization_id=org.id,
                 is_active=True,
                 must_change_password=True,

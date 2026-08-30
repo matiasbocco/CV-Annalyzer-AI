@@ -20,5 +20,8 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60
     refresh_token_expire_days: int = 7
 
+    # Analysis limits
+    max_cvs_per_analysis: int = 30
+
 
 settings = Settings()

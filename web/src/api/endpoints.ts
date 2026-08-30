@@ -2,6 +2,8 @@ import client from './client'
 import type {
   AdminCV,
   AdminUser,
+  AnalysisHistoryResponse,
+  AnalyzeResponse,
   ContactInfo,
   CostsResponse,
   CreateUserResponse,
@@ -150,14 +152,21 @@ export async function adminListUsers(): Promise<AdminUser[]> {
 export async function adminCreateUser(
   email: string,
   role: 'admin' | 'recruiter',
+  firstName?: string,
+  lastName?: string,
 ): Promise<CreateUserResponse> {
-  const { data } = await client.post<CreateUserResponse>('/admin/users', { email, role })
+  const { data } = await client.post<CreateUserResponse>('/admin/users', {
+    email,
+    role,
+    first_name: firstName || null,
+    last_name: lastName || null,
+  })
   return data
 }
 
 export async function adminPatchUser(
   userId: string,
-  patch: { is_active?: boolean; role?: 'admin' | 'recruiter' },
+  patch: { is_active?: boolean; role?: 'admin' | 'recruiter'; first_name?: string; last_name?: string },
 ): Promise<AdminUser> {
   const { data } = await client.patch<AdminUser>(`/admin/users/${userId}`, patch)
   return data
@@ -187,6 +196,28 @@ export async function adminListCVs(page = 1): Promise<CVListResponse> {
 
 export async function adminExpireCVs(): Promise<{ expired: number }> {
   const { data } = await client.post<{ expired: number }>('/admin/expire-cvs')
+  return data
+}
+
+export async function adminCleanupAnalyses(): Promise<{ deleted_count: number }> {
+  const { data } = await client.post<{ deleted_count: number }>('/admin/cleanup-analyses')
+  return data
+}
+
+// ── Analysis history ──────────────────────────────────────────────────────────
+
+export async function getAnalysisHistory(
+  page = 1,
+  pageSize = 20,
+): Promise<AnalysisHistoryResponse> {
+  const { data } = await client.get<AnalysisHistoryResponse>(
+    `/analyses?page=${page}&page_size=${pageSize}`,
+  )
+  return data
+}
+
+export async function getAnalysisDetail(analysisId: string): Promise<AnalyzeResponse> {
+  const { data } = await client.get<AnalyzeResponse>(`/analyses/${analysisId}`)
   return data
 }
 

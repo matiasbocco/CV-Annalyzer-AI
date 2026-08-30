@@ -4,6 +4,8 @@ export interface UserInfo {
   id: string
   email: string
   role: 'admin' | 'recruiter'
+  first_name: string | null
+  last_name: string | null
 }
 
 export interface LoginResponse {
@@ -24,6 +26,8 @@ export interface RefreshResponse {
 export interface AdminUser {
   id: string
   email: string
+  first_name: string | null
+  last_name: string | null
   role: 'admin' | 'recruiter'
   is_active: boolean
   last_login: string | null
@@ -274,5 +278,27 @@ export type StartTiebreakerResponse = TiebreakerNotNeeded | TiebreakerCreated
 export interface TiebreakerAnswerResponse {
   final_ranking: string[]
   adjustments: CandidateAdjustment[]
+}
+
+// ── Analysis history ──────────────────────────────────────────────────────────
+
+export interface AnalysisHistoryItem {
+  id: string
+  job_description_preview: string
+  job_summary_preview: string
+  category: CategoryInfo | null
+  candidates_count: number
+  created_at: string
+  feedback_rating: number | null
+  /** Only present for admin users */
+  user_email: string | null
+}
+
+export interface AnalysisHistoryResponse {
+  items: AnalysisHistoryItem[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
 }
 

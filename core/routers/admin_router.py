@@ -14,6 +14,7 @@ from core.db.database import get_db
 from core.db.models import Analysis, CV, Feedback, JobCategory, User, UserRole
 from core.dependencies import require_admin
 from core.services.auth_service import hash_password
+from core.services.cleanup_service import delete_old_analyses
 from core.services.ttl_service import expire_old_cvs
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -33,11 +34,15 @@ class CreateUserRequest(BaseModel):
     email: EmailStr
     role: UserRole
     password: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
 
 
 class PatchUserRequest(BaseModel):
     is_active: Optional[bool] = None
     role: Optional[UserRole] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
 
 
 @router.get("/users")
@@ -64,6 +69,8 @@ async def list_users(
             {
                 "id": str(u.id),
                 "email": u.email,
+                "first_name": u.first_name,
+                "last_name": u.last_name,
                 "role": u.role.value,
                 "is_active": u.is_active,
                 "last_login": u.last_login.isoformat() if u.last_login else None,
@@ -92,6 +99,8 @@ async def create_user(
         email=body.email,
         hashed_password=hash_password(temp_password),
         role=body.role,
+        first_name=body.first_name,
+        last_name=body.last_name,
         organization_id=current_user.organization_id,
         is_active=True,
         must_change_password=True,
@@ -130,6 +139,10 @@ async def patch_user(
         user.is_active = body.is_active
     if body.role is not None:
         user.role = body.role
+    if body.first_name is not None:
+        user.first_name = body.first_name
+    if body.last_name is not None:
+        user.last_name = body.last_name
 
     await db.commit()
     return {"id": str(user.id), "is_active": user.is_active, "role": user.role.value}
@@ -379,3 +392,13 @@ async def admin_expire_cvs(
 ):
     count = await expire_old_cvs(db)
     return {"expired": count}
+
+
+@router.post("/cleanup-analyses")
+async def admin_cleanup_analyses(
+    current_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Manually trigger deletion of analyses older than 7 days."""
+    deleted_count = await delete_old_analyses(db)
+    return {"deleted_count": deleted_count}

@@ -150,6 +150,7 @@ async def _analyze_pipeline(
     cv_data: list[dict],
     job_description: str,
     include_bank: bool,
+    user_id: str | None = None,
 ) -> dict:
     """Full analysis pipeline. cv_data carries pre-extracted {filename, text} dicts."""
     cvs = [(item["filename"], item["text"]) for item in cv_data]
@@ -191,7 +192,7 @@ async def _analyze_pipeline(
                 enriched.append(_enrich_candidate(candidate, "uploaded", 1.0))
             else:
                 bank_cv = bank_cv_by_filename.get(candidate.filename)
-                factor = compute_recency_factor(bank_cv.created_at) if bank_cv else 1.0
+                factor = compute_recency_factor(bank_cv.last_seen_at) if bank_cv else 1.0
                 enriched.append(_enrich_candidate(candidate, "bank", factor))
         enriched.sort(key=lambda c: c.score, reverse=True)
 
@@ -204,6 +205,7 @@ async def _analyze_pipeline(
             model_used=settings.openai_model,
             job_category_id=category.id if category else None,
             anonymized=True,
+            user_id=uuid.UUID(user_id) if user_id else None,
         )
         db.add(analysis)
         await db.commit()
@@ -233,6 +235,15 @@ async def _analyze_pipeline(
         for candidate in enriched:
             candidate.contact = _build_contact(filename_to_cv.get(candidate.filename))
 
+        # Re-persist ranking now that contact fields are populated.
+        # The initial DB write (above) happened before ingest, so contacts were
+        # null.  This second write makes GET /analyses/{id} return full contact.
+        try:
+            analysis.ranking = [c.model_dump() for c in enriched]
+            await db.commit()
+        except Exception:
+            pass
+
         return AnalyzeResponse(
             analysis_id=analysis.id,
             ranking=enriched,
@@ -243,7 +254,7 @@ async def _analyze_pipeline(
         ).model_dump(mode="json")
 
 
-async def _match_pipeline(job_description: str, top_n: int) -> dict:
+async def _match_pipeline(job_description: str, top_n: int, user_id: str | None = None) -> dict:
     """Full match-job pipeline (bank-only ranking)."""
     async with AsyncSessionLocal() as db:
         job_embedding = await generate_embedding(job_description)
@@ -272,7 +283,7 @@ async def _match_pipeline(job_description: str, top_n: int) -> dict:
         enriched: list[CandidateRankingWithSource] = []
         for candidate in result.ranking:
             bank_cv = bank_cv_by_filename.get(candidate.filename)
-            factor = compute_recency_factor(bank_cv.created_at) if bank_cv else 1.0
+            factor = compute_recency_factor(bank_cv.last_seen_at) if bank_cv else 1.0
             c = _enrich_candidate(candidate, "bank", factor)
             c.contact = _build_contact(bank_cv)
             enriched.append(c)
@@ -287,6 +298,7 @@ async def _match_pipeline(job_description: str, top_n: int) -> dict:
             model_used=settings.openai_model,
             job_category_id=category.id if category else None,
             anonymized=True,
+            user_id=uuid.UUID(user_id) if user_id else None,
         )
         db.add(analysis)
         await db.commit()
@@ -313,23 +325,36 @@ async def _match_pipeline(job_description: str, top_n: int) -> dict:
 # ── Celery tasks ──────────────────────────────────────────────────────────────
 
 @celery_app.task(bind=True, max_retries=3, default_retry_delay=5)
-def analyze_cvs_task(self, cv_data: list[dict], job_description: str, include_bank: bool) -> dict:
+def analyze_cvs_task(
+    self,
+    cv_data: list[dict],
+    job_description: str,
+    include_bank: bool,
+    user_id: str | None = None,
+) -> dict:
     """Run the full CV analysis pipeline.
 
     cv_data carries {filename, text} dicts — text was extracted synchronously
     in the FastAPI handler (fast, fails early, keeps binary files out of Redis).
+    user_id is passed as a string because Celery serialises args as JSON and
+    UUID is not JSON-serialisable; the pipeline converts it back to UUID.
     asyncio.run() creates a fresh event loop; the Celery worker has none of its own.
     """
     try:
-        return asyncio.run(_analyze_pipeline(cv_data, job_description, include_bank))
+        return asyncio.run(_analyze_pipeline(cv_data, job_description, include_bank, user_id))
     except Exception as exc:
         raise self.retry(exc=exc)
 
 
 @celery_app.task(bind=True, max_retries=3, default_retry_delay=5)
-def match_job_task(self, job_description: str, top_n: int) -> dict:
+def match_job_task(
+    self,
+    job_description: str,
+    top_n: int,
+    user_id: str | None = None,
+) -> dict:
     """Run the full match-job pipeline (bank-only ranking)."""
     try:
-        return asyncio.run(_match_pipeline(job_description, top_n))
+        return asyncio.run(_match_pipeline(job_description, top_n, user_id))
     except Exception as exc:
         raise self.retry(exc=exc)

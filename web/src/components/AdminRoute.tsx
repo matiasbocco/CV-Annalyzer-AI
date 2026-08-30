@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 import { getToken, getUser, setToken, setUser } from '../auth'
-import type { RefreshResponse } from '../api/types'
-import client from '../api/client'
+import { refreshSession } from '../api/client'
 
 type State = 'checking' | 'authenticated' | 'unauthenticated' | 'forbidden'
 
@@ -24,12 +23,11 @@ export default function AdminRoute() {
   useEffect(() => {
     if (state !== 'checking') return
 
-    client
-      .post<RefreshResponse>('/auth/refresh')
+    refreshSession()
       .then((res) => {
-        setToken(res.data.access_token)
-        setUser(res.data.user)
-        setState(res.data.user.role === 'admin' ? 'authenticated' : 'forbidden')
+        setToken(res.access_token)
+        setUser(res.user)
+        setState(res.user.role === 'admin' ? 'authenticated' : 'forbidden')
       })
       .catch(() => {
         setState('unauthenticated')

@@ -56,6 +56,8 @@ class User(Base):
     organization_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, ForeignKey("organizations.id"), nullable=False, index=True
     )
+    first_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    last_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     must_change_password: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     last_login: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
@@ -183,6 +185,11 @@ class Analysis(Base):
     anonymized: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         Uuid, ForeignKey("organizations.id"), nullable=True, index=True
+    )
+    # Nullable: existing rows predate the user system; SET NULL if the user is
+    # deleted so historical analyses are preserved for admins.
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 

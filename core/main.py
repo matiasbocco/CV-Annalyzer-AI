@@ -6,13 +6,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from openai import OpenAIError
 from pydantic import BaseModel, Field, ValidationError
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
@@ -59,9 +59,11 @@ from core.services.tiebreaker_service import (
     generate_questions,
 )
 from core.services.ttl_service import expire_old_cvs
+from core.services.cleanup_service import delete_old_analyses
 from core.routers.auth_router import router as auth_router
 from core.routers.protected_auth_router import router as protected_auth_router
 from core.routers.admin_router import router as admin_router
+from core.db.models import UserRole
 from core.dependencies import require_recruiter
 from core.db.models import User
 
@@ -106,6 +108,9 @@ async def lifespan(app: FastAPI):
         expired = await expire_old_cvs(db)
         if expired:
             print(f"[startup] Expired {expired} stale CV(s).")
+        deleted = await delete_old_analyses(db)
+        if deleted:
+            print(f"[startup] Deleted {deleted} analyses older than 7 days.")
         await _check_bank_drift(db)
     yield
 
@@ -159,7 +164,7 @@ def _build_contact(cv) -> ContactInfo | None:
 
 _JD_MIN = 50
 _JD_MAX = 3000
-_MAX_UPLOAD_FILES = 10
+_MAX_UPLOAD_FILES = settings.max_cvs_per_analysis
 
 
 class MatchJobRequest(BaseModel):
@@ -328,14 +333,17 @@ async def analyze(
     cv_data: list[dict] = []
     for file in files:
         raw = await file.read()
-        text = await extract_text_from_bytes(raw, file.filename or "cv")
+        try:
+            text = await extract_text_from_bytes(raw, file.filename or "cv")
+        except HTTPException as exc:
+            raise HTTPException(exc.status_code, f"{file.filename}: {exc.detail}")
         if not text.strip():
             raise HTTPException(422, f"No extractable text: {file.filename}")
         cv_data.append({"filename": file.filename, "text": text})
 
     # 3. Queue the heavy work (LLM ranking, DB persistence) in Celery.
     from core.tasks import analyze_cvs_task
-    task = analyze_cvs_task.delay(cv_data, jd, include_bank)
+    task = analyze_cvs_task.delay(cv_data, jd, include_bank, str(current_user.id))
 
     return JSONResponse({"job_id": task.id, "status": "pending"}, status_code=202)
 
@@ -450,7 +458,7 @@ async def match_job(
 ):
     """Queue a bank-only CV ranking job and return a job_id immediately."""
     from core.tasks import match_job_task
-    task = match_job_task.delay(body.job_description, body.top_n)
+    task = match_job_task.delay(body.job_description, body.top_n, str(current_user.id))
     return JSONResponse({"job_id": task.id, "status": "pending"}, status_code=202)
 
 
@@ -633,4 +641,116 @@ async def get_tiebreaker(
         final_ranking=session.final_ranking,
     )
 
+
+# ── Analysis history ──────────────────────────────────────────────────────────
+
+@app.get("/analyses")
+async def list_analyses(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    current_user: User = Depends(require_recruiter),
+    db: AsyncSession = Depends(get_db),
+):
+    """Paginated list of analyses for the current user (admins see all)."""
+    is_admin = current_user.role == UserRole.admin
+
+    base = select(Analysis)
+    count_base = select(func.count()).select_from(Analysis)
+    if not is_admin:
+        base = base.where(Analysis.user_id == current_user.id)
+        count_base = count_base.where(Analysis.user_id == current_user.id)
+
+    total: int = (await db.execute(count_base)).scalar_one()
+    analyses = (
+        await db.execute(
+            base.order_by(Analysis.created_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+    ).scalars().all()
+
+    # Batch-load categories and feedback to avoid N+1 queries.
+    cat_ids = [a.job_category_id for a in analyses if a.job_category_id]
+    cats: dict = {}
+    if cat_ids:
+        cat_rows = (
+            await db.execute(select(JobCategory).where(JobCategory.id.in_(cat_ids)))
+        ).scalars().all()
+        cats = {c.id: c for c in cat_rows}
+
+    analysis_ids = [a.id for a in analyses]
+    feedbacks: dict = {}
+    if analysis_ids:
+        fb_rows = (
+            await db.execute(select(Feedback).where(Feedback.analysis_id.in_(analysis_ids)))
+        ).scalars().all()
+        feedbacks = {fb.analysis_id: fb.rating for fb in fb_rows}
+
+    # For admin: also resolve user emails.
+    user_ids = list({a.user_id for a in analyses if a.user_id})
+    user_emails: dict = {}
+    if is_admin and user_ids:
+        user_rows = (
+            await db.execute(select(User).where(User.id.in_(user_ids)))
+        ).scalars().all()
+        user_emails = {u.id: u.email for u in user_rows}
+
+    items = []
+    for a in analyses:
+        cat = cats.get(a.job_category_id) if a.job_category_id else None
+        items.append({
+            "id": str(a.id),
+            "job_description_preview": a.job_description[:100],
+            "job_summary_preview": (a.job_summary or "")[:150],
+            "category": {"slug": cat.slug, "display_name": cat.display_name} if cat else None,
+            "candidates_count": len(a.ranking) if a.ranking else 0,
+            "created_at": a.created_at.isoformat(),
+            "feedback_rating": feedbacks.get(a.id),
+            "user_email": user_emails.get(a.user_id) if is_admin else None,
+        })
+
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": max(1, (total + page_size - 1) // page_size),
+    }
+
+
+@app.get("/analyses/{analysis_id}")
+async def get_analysis(
+    analysis_id: uuid.UUID,
+    current_user: User = Depends(require_recruiter),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the full ranking for a stored analysis.
+
+    Recruiters may only access their own analyses.  Admins can access any.
+    """
+    analysis = (
+        await db.execute(select(Analysis).where(Analysis.id == analysis_id))
+    ).scalar_one_or_none()
+    if analysis is None:
+        raise HTTPException(404, "Análisis no encontrado.")
+
+    is_admin = current_user.role == UserRole.admin
+    if not is_admin and analysis.user_id != current_user.id:
+        raise HTTPException(403, "No tenés acceso a este análisis.")
+
+    cat = None
+    if analysis.job_category_id:
+        cat_row = (
+            await db.execute(select(JobCategory).where(JobCategory.id == analysis.job_category_id))
+        ).scalar_one_or_none()
+        if cat_row:
+            cat = {"slug": cat_row.slug, "display_name": cat_row.display_name}
+
+    return {
+        "analysis_id": str(analysis.id),
+        "ranking": analysis.ranking or [],
+        "job_summary": analysis.job_summary,
+        "category": cat,
+        "anonymized": analysis.anonymized,
+    }
 

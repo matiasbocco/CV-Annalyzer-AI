@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 import { getToken, setToken, setUser } from '../auth'
-import type { RefreshResponse } from '../api/types'
-import client from '../api/client'
+import { refreshSession } from '../api/client'
+import WelcomeScreen from './WelcomeScreen'
 
 type State = 'checking' | 'authenticated' | 'unauthenticated'
 
@@ -21,11 +21,10 @@ export default function ProtectedRoute() {
   useEffect(() => {
     if (state !== 'checking') return
 
-    client
-      .post<RefreshResponse>('/auth/refresh')
+    refreshSession()
       .then((res) => {
-        setToken(res.data.access_token)
-        setUser(res.data.user)
+        setToken(res.access_token)
+        setUser(res.user)
         setState('authenticated')
       })
       .catch(() => {
@@ -45,5 +44,10 @@ export default function ProtectedRoute() {
     return <Navigate to="/login" replace />
   }
 
-  return <Outlet />
+  return (
+    <>
+      <WelcomeScreen />
+      <Outlet />
+    </>
+  )
 }

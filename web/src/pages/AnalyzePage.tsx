@@ -1,69 +1,71 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
+import { Search, Loader2 } from 'lucide-react'
 import { useAnalyzeCVs, useJobStatus } from '../api/hooks'
 import { cn, detectLang, getErrorMessage } from '../lib/utils'
-import { LangProvider, T, useLang } from '../LangContext'
+import { LangProvider } from '../LangContext'
 import type { Lang } from '../lib/utils'
 import type { AnalyzeResponse, Candidate } from '../api/types'
-import RankingTable from '../components/RankingTable'
-import CandidateCard from '../components/CandidateCard'
-import StarRating from '../components/StarRating'
-import TiebreakerFlow from '../components/TiebreakerFlow'
+import ResultsView from '../components/ResultsView'
+import AsyncLoadingScreen from '../components/AsyncLoadingScreen'
 
-const MAX_FILES = 10
+const MAX_FILES = 30
 const JD_MIN    = 50
 const JD_MAX    = 3000
 
-// ── Async loading screen ──────────────────────────────────────────────────────
+// ── Toggle switch ─────────────────────────────────────────────────────────────
 
-const STEPS = [
-  { icon: '📄', text: 'Extrayendo texto...' },
-  { icon: '🔍', text: 'Buscando candidatos...' },
-  { icon: '🤖', text: 'Analizando con IA...' },
-  { icon: '💾', text: 'Guardando resultados...' },
-]
-
-function AsyncLoadingScreen() {
-  const [step, setStep] = useState(0)
-  useEffect(() => {
-    const id = setInterval(
-      () => setStep(p => Math.min(p + 1, STEPS.length - 1)),
-      8000,
-    )
-    return () => clearInterval(id)
-  }, [])
-
+function ToggleSwitch({
+  checked,
+  onChange,
+}: {
+  checked: boolean
+  onChange: (v: boolean) => void
+}) {
   return (
-    <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center p-4">
-      <div className="w-full max-w-sm bg-[#111118] border border-slate-800 rounded-2xl p-8 space-y-6">
-        <div className="text-center space-y-1">
-          <p className="text-base font-semibold text-slate-200">Procesando análisis</p>
-          <p className="text-xs text-slate-500">Este proceso puede tomar entre 15 y 40 segundos</p>
-        </div>
-        <div className="space-y-2">
-          {STEPS.map((s, i) => (
-            <div
-              key={i}
-              className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-500',
-                i === step
-                  ? 'bg-sky-500/10 text-sky-400 font-medium'
-                  : i < step
-                    ? 'text-slate-600'
-                    : 'text-slate-700',
-              )}
-            >
-              <span className={i === step ? 'animate-bounce' : ''}>{s.icon}</span>
-              <span className="flex-1">{s.text}</span>
-              {i < step && <span className="text-emerald-500 text-xs">✓</span>}
-              {i === step && (
-                <span className="w-3.5 h-3.5 rounded-full border-2 border-sky-700 border-t-sky-400 animate-spin flex-shrink-0" />
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+    <label
+      style={{ display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer', userSelect: 'none' }}
+    >
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        style={{
+          width: 44,
+          height: 24,
+          borderRadius: 12,
+          border: `1px solid ${checked ? '#3b82f6' : '#2a3447'}`,
+          background: checked ? '#2563eb' : '#1e2a3d',
+          position: 'relative',
+          cursor: 'pointer',
+          transition: 'background 0.2s, border-color 0.2s',
+          flexShrink: 0,
+          marginTop: 2,
+          padding: 0,
+        }}
+      >
+        <span
+          style={{
+            position: 'absolute',
+            top: 3,
+            left: checked ? 22 : 3,
+            width: 16,
+            height: 16,
+            borderRadius: '50%',
+            background: 'white',
+            transition: 'left 0.2s',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+          }}
+        />
+      </button>
+      <span>
+        <span className="text-sm text-slate-300">Incluir candidatos del banco</span>
+        <span className="block text-xs text-slate-600 mt-0.5">
+          Busca candidatos similares en el historial
+        </span>
+      </span>
+    </label>
   )
 }
 
@@ -143,7 +145,7 @@ export default function AnalyzePage() {
       jobStatus.data?.status !== 'completed' &&
       jobStatus.data?.status !== 'failed')
 
-  if (isProcessing) return <AsyncLoadingScreen />
+  if (isProcessing) return <AsyncLoadingScreen mode="analyze" fileCount={files.length} />
 
   if (analyze.isError || (jobId && jobStatus.data?.status === 'failed')) {
     const msg = analyze.isError
@@ -197,6 +199,8 @@ export default function AnalyzePage() {
   const charState =
     jobDescription.length > JD_MAX ? 'over' :
     jobDescription.length >= JD_MIN ? 'ok' : 'under'
+
+  const canSubmit = files.length > 0 && charState !== 'over' && charState !== 'under'
 
   return (
     <div className="min-h-screen bg-[#0A0A0F] py-10 px-4">
@@ -294,21 +298,8 @@ export default function AnalyzePage() {
             </div>
           </div>
 
-          {/* Include bank */}
-          <label className="flex items-start gap-3 cursor-pointer select-none group">
-            <input
-              type="checkbox"
-              checked={includeBank}
-              onChange={e => setIncludeBank(e.target.checked)}
-              className="mt-0.5 w-4 h-4 cursor-pointer accent-sky-500"
-            />
-            <span className="text-sm text-slate-300 group-hover:text-slate-200 transition-colors">
-              Incluir candidatos del banco de CVs
-              <span className="block text-xs text-slate-600 mt-0.5">
-                Se agregan al ranking junto a los CVs subidos.
-              </span>
-            </span>
-          </label>
+          {/* Include bank — styled toggle */}
+          <ToggleSwitch checked={includeBank} onChange={setIncludeBank} />
 
           {validationError && (
             <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2.5">
@@ -316,73 +307,24 @@ export default function AnalyzePage() {
             </p>
           )}
 
+          {/* Submit button */}
           <button
             type="submit"
-            className="w-full bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-700 hover:to-sky-600 text-white font-semibold py-2.5 rounded-xl transition-all"
+            disabled={!canSubmit || analyze.isPending}
+            className={cn(
+              'w-full flex items-center justify-center gap-2 font-semibold py-2.5 rounded-xl transition-all',
+              canSubmit && !analyze.isPending
+                ? 'bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-500 hover:to-sky-400 text-white hover:scale-[1.01]'
+                : 'bg-gradient-to-r from-blue-600 to-sky-500 text-white opacity-40 cursor-not-allowed',
+            )}
           >
-            Analizar
+            {analyze.isPending
+              ? <><Loader2 size={16} className="animate-spin" /> Enviando...</>
+              : <><Search size={16} /> Analizar CVs</>
+            }
           </button>
         </form>
       </div>
-    </div>
-  )
-}
-
-// ── Results view ──────────────────────────────────────────────────────────────
-
-function ResultsView({
-  data,
-  ranking,
-  onRankingUpdate,
-}: {
-  data: AnalyzeResponse
-  ranking: Candidate[]
-  onRankingUpdate: (r: Candidate[]) => void
-}) {
-  const t = T[useLang()]
-
-  return (
-    <div className="space-y-5">
-      {/* Ideal profile */}
-      <div className="border-l-4 border-sky-500 bg-sky-500/5 rounded-r-xl p-4">
-        <p className="text-xs font-semibold uppercase tracking-wider text-sky-500 mb-1">
-          {t.idealProfile}
-        </p>
-        <p className="text-sm text-slate-300 leading-relaxed">{data.job_summary}</p>
-      </div>
-
-      {/* Badges */}
-      <div className="flex flex-wrap items-center gap-2">
-        {data.category && (
-          <span className="inline-flex items-center bg-slate-800 border border-slate-700 text-slate-300 text-xs font-semibold px-3 py-1 rounded-full">
-            🏷 {data.category.display_name}
-          </span>
-        )}
-        {data.anonymized && (
-          <span
-            className="inline-flex items-center gap-1.5 bg-sky-500/10 text-sky-400 border border-sky-500/30 text-xs font-semibold px-3 py-1 rounded-full cursor-help"
-            title="Los datos de contacto fueron ocultados al modelo de IA durante la evaluación para evitar sesgos."
-          >
-            🔒 Evaluado sin datos personales
-          </span>
-        )}
-      </div>
-
-      <RankingTable ranking={ranking} />
-
-      <TiebreakerFlow
-        analysisId={data.analysis_id}
-        ranking={ranking}
-        onComplete={onRankingUpdate}
-      />
-
-      <div className="space-y-4">
-        {ranking.map((c, i) => (
-          <CandidateCard key={c.filename} position={i + 1} candidate={c} />
-        ))}
-      </div>
-
-      <StarRating analysisId={data.analysis_id} />
     </div>
   )
 }

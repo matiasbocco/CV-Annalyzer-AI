@@ -56,9 +56,14 @@ async def ingest_cv(
     ).scalar_one_or_none()
 
     if existing:
+        was_expired = existing.is_expired
         existing.last_seen_at = datetime.now(timezone.utc)
         existing.times_matched += 1
         existing.is_expired = False
+        # When a previously expired CV is re-uploaded, stale contact data should
+        # be discarded so extraction runs fresh against the new upload.
+        if was_expired:
+            existing.contact_extracted_at = None
         await db.flush()
 
         # Keep ChromaDB metadata in sync.
@@ -72,7 +77,7 @@ async def ingest_cv(
             },
         )
 
-        # Backfill contact info for CVs that predate this feature.
+        # Extract contact info if missing (first time) or after expiry reset.
         if existing.contact_extracted_at is None:
             if contact_override:
                 _apply_contact_dict(existing, contact_override)
