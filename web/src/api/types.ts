@@ -183,6 +183,13 @@ export type MatchJobResponse = AnalyzeResponse
 
 // ── CV upload ─────────────────────────────────────────────────────────────────
 
+export interface BulkUploadResponse {
+  added: number
+  duplicates: number
+  failed: number
+  cv_ids: string[]
+}
+
 export interface UploadResponse {
   status: 'added' | 'duplicate' | 'failed'
   filename: string

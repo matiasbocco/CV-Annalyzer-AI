@@ -2,6 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import type { ContactInfo, JobStatusResponse, TiebreakerAnswer } from './types'
 import {
   analyzeCVs,
+  bulkUploadCVs,
   extractContact,
   getAnalysisDetail,
   getAnalysisHistory,
@@ -58,6 +59,12 @@ export function useUploadCV() {
       contactInfo: Partial<ContactInfo>
       expectedHash: string
     }) => uploadCV(file, contactInfo, expectedHash),
+  })
+}
+
+export function useBulkUploadCVs() {
+  return useMutation({
+    mutationFn: (files: File[]) => bulkUploadCVs(files),
   })
 }
 

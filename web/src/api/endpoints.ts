@@ -4,6 +4,7 @@ import type {
   AdminUser,
   AnalysisHistoryResponse,
   AnalyzeResponse,
+  BulkUploadResponse,
   ContactInfo,
   CostsResponse,
   CreateUserResponse,
@@ -99,11 +100,19 @@ export async function uploadCV(
   expectedHash: string,
 ): Promise<UploadResponse> {
   const form = new FormData()
-  form.append('file', file)
+  form.append('files', file)
   form.append('contact_info', JSON.stringify(contactInfo))
   form.append('expected_hash', expectedHash)
 
   const { data } = await client.post<UploadResponse>('/cvs/batch', form)
+  return data
+}
+
+export async function bulkUploadCVs(files: File[]): Promise<BulkUploadResponse> {
+  const form = new FormData()
+  files.forEach((f) => form.append('files', f))
+
+  const { data } = await client.post<BulkUploadResponse>('/cvs/batch', form)
   return data
 }
 

@@ -1,9 +1,19 @@
 import { useCallback, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { useExtractContact, useUploadCV } from '../api/hooks'
-import type { ContactInfo, UploadResponse } from '../api/types'
+import { useBulkUploadCVs, useExtractContact, useUploadCV } from '../api/hooks'
+import type { BulkUploadResponse, ContactInfo, UploadResponse } from '../api/types'
 import { cn, getErrorMessage } from '../lib/utils'
 import LoadingScreen from '../components/LoadingScreen'
+
+const MAX_FILES = 30
+
+const ACCEPTED = {
+  'application/pdf': ['.pdf'],
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+  'image/jpeg': ['.jpg', '.jpeg'],
+  'image/png': ['.png'],
+  'image/webp': ['.webp'],
+}
 
 type ContactDraft = {
   full_name: string
@@ -42,7 +52,7 @@ function extractedToContactDraft(extracted: Partial<ContactInfo>): ContactDraft 
   }
 }
 
-// ── Step indicator ────────────────────────────────────────────────────────────
+// ── Step indicator (single-file flow only) ────────────────────────────────────
 
 function StepIndicator({ step }: { step: 1 | 2 }) {
   const steps = ['Seleccionar archivo', 'Confirmar datos']
@@ -50,8 +60,8 @@ function StepIndicator({ step }: { step: 1 | 2 }) {
     <div className="flex items-center gap-2 mb-6">
       {steps.map((label, idx) => {
         const n = idx + 1
-        const isActive  = step === n
-        const isDone    = step > n
+        const isActive = step === n
+        const isDone   = step > n
         return (
           <div key={n} className="flex items-center gap-2">
             <div className={cn(
@@ -121,29 +131,36 @@ function Field({
   )
 }
 
-// ── Step 1 — File picker ──────────────────────────────────────────────────────
+// ── File picker (multi-file) ──────────────────────────────────────────────────
 
-function FilePicker({ onFile }: { onFile: (f: File) => void }) {
-  const [file, setFile] = useState<File | null>(null)
-
+function MultiFilePicker({
+  files,
+  onFiles,
+}: {
+  files: File[]
+  onFiles: (files: File[]) => void
+}) {
   const onDrop = useCallback((accepted: File[]) => {
-    if (accepted[0]) setFile(accepted[0])
-  }, [])
+    onFiles((prev: File[]) => {
+      const names = new Set(prev.map(f => f.name))
+      const merged = [...prev, ...accepted.filter(f => !names.has(f.name))]
+      return merged.slice(0, MAX_FILES)
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onFiles])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      'application/pdf': ['.pdf'],
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-      'image/jpeg': ['.jpg', '.jpeg'],
-      'image/png': ['.png'],
-      'image/webp': ['.webp'],
-    },
-    multiple: false,
+    accept: ACCEPTED,
+    multiple: true,
   })
 
+  function removeFile(name: string) {
+    onFiles((prev: File[]) => prev.filter(f => f.name !== name))
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div
         {...getRootProps()}
         className={cn(
@@ -157,33 +174,39 @@ function FilePicker({ onFile }: { onFile: (f: File) => void }) {
         <p className="text-3xl mb-2">📄</p>
         <p className="text-sm text-slate-400">
           {isDragActive
-            ? 'Soltá el archivo aquí…'
-            : 'Arrastrá tu CV aquí, o hacé clic para seleccionar'}
+            ? 'Soltá los archivos aquí…'
+            : 'Arrastrá CVs aquí, o hacé clic para seleccionar'}
         </p>
-        <p className="text-xs text-slate-600 mt-1">PDF · DOCX · JPG · PNG · WEBP</p>
+        <p className="text-xs text-slate-600 mt-1">
+          PDF · DOCX · JPG · PNG · WEBP · hasta {MAX_FILES} archivos
+        </p>
       </div>
 
-      {file && (
-        <div className="flex items-center justify-between bg-slate-800/50 border border-slate-700/50 rounded-lg px-4 py-3">
-          <span className="text-sm text-slate-300 truncate">{file.name}</span>
-          <button
-            type="button"
-            onClick={() => setFile(null)}
-            className="ml-3 text-slate-500 hover:text-red-400 flex-shrink-0 text-lg leading-none transition-colors"
-          >
-            ×
-          </button>
+      {files.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {files.map(f => (
+            <span
+              key={f.name}
+              className="inline-flex items-center gap-1.5 bg-slate-800 border border-slate-700 text-slate-300 text-xs rounded-lg px-3 py-1.5 max-w-[220px]"
+            >
+              <span className="truncate">{f.name}</span>
+              <button
+                type="button"
+                onClick={() => removeFile(f.name)}
+                className="flex-shrink-0 text-slate-500 hover:text-red-400 transition-colors leading-none text-base"
+              >
+                ×
+              </button>
+            </span>
+          ))}
         </div>
       )}
 
-      <button
-        type="button"
-        disabled={!file}
-        onClick={() => file && onFile(file)}
-        className="w-full bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-700 hover:to-sky-600 text-white font-semibold py-2.5 rounded-xl disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed transition-all"
-      >
-        Extraer datos del CV →
-      </button>
+      {files.length >= MAX_FILES && (
+        <p className="text-xs text-amber-400">
+          Límite de {MAX_FILES} archivos alcanzado.
+        </p>
+      )}
     </div>
   )
 }
@@ -284,7 +307,7 @@ function ContactForm({
   )
 }
 
-// ── Success card ──────────────────────────────────────────────────────────────
+// ── Success card (single file) ────────────────────────────────────────────────
 
 function SuccessCard({ result, onReset }: { result: UploadResponse; onReset: () => void }) {
   const isDuplicate = result.status === 'duplicate'
@@ -315,20 +338,63 @@ function SuccessCard({ result, onReset }: { result: UploadResponse; onReset: () 
   )
 }
 
+// ── Success card (bulk upload) ────────────────────────────────────────────────
+
+function BulkSuccessCard({ result, onReset }: { result: BulkUploadResponse; onReset: () => void }) {
+  const total = result.added + result.duplicates + result.failed
+  return (
+    <div className="text-center space-y-5 py-6">
+      <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-3xl mx-auto">
+        ✅
+      </div>
+      <div>
+        <p className="text-base font-semibold text-slate-100">
+          {total === 1 ? '1 archivo procesado' : `${total} archivos procesados`}
+        </p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3 text-sm">
+        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl py-3">
+          <p className="text-2xl font-bold text-emerald-400">{result.added}</p>
+          <p className="text-xs text-slate-500 mt-0.5">agregados</p>
+        </div>
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl py-3">
+          <p className="text-2xl font-bold text-amber-400">{result.duplicates}</p>
+          <p className="text-xs text-slate-500 mt-0.5">duplicados</p>
+        </div>
+        <div className="bg-red-500/10 border border-red-500/20 rounded-xl py-3">
+          <p className="text-2xl font-bold text-red-400">{result.failed}</p>
+          <p className="text-xs text-slate-500 mt-0.5">fallidos</p>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={onReset}
+        className="bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-700 hover:to-sky-600 text-white text-sm font-semibold px-6 py-2.5 rounded-xl transition-all"
+      >
+        Cargar más CVs
+      </button>
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function UploadPage() {
-  const [file, setFile]                       = useState<File | null>(null)
-  const [draft, setDraft]                     = useState<ContactDraft | null>(null)
-  const [missingFields, setMissingFields]     = useState<string[]>([])
-  const [hash, setHash]                       = useState('')
+  const [files, setFiles]                   = useState<File[]>([])
+  const [draft, setDraft]                   = useState<ContactDraft | null>(null)
+  const [missingFields, setMissingFields]   = useState<string[]>([])
+  const [hash, setHash]                     = useState('')
 
-  const extract = useExtractContact()
-  const upload  = useUploadCV()
+  const extract    = useExtractContact()
+  const upload     = useUploadCV()
+  const bulkUpload = useBulkUploadCVs()
 
-  function handleFile(f: File) {
-    setFile(f)
-    extract.mutate(f, {
+  // Called when the user clicks "Extraer datos" in single-file mode.
+  function handleExtract() {
+    if (files.length !== 1) return
+    extract.mutate(files[0], {
       onSuccess(data) {
         setDraft(extractedToContactDraft(data.extracted_contact))
         setMissingFields(data.missing_fields)
@@ -337,23 +403,34 @@ export default function UploadPage() {
     })
   }
 
-  function handleSubmit() {
-    if (!file || !draft) return
-    upload.mutate({ file, contactInfo: toContactInfo(draft), expectedHash: hash })
+  // Called when the user confirms contact data in single-file mode.
+  function handleSingleSubmit() {
+    if (!files[0] || !draft) return
+    upload.mutate({ file: files[0], contactInfo: toContactInfo(draft), expectedHash: hash })
+  }
+
+  // Called when the user clicks "Subir CVs" in multi-file mode.
+  function handleBulkSubmit() {
+    if (files.length < 2) return
+    bulkUpload.mutate(files)
   }
 
   function resetAll() {
-    setFile(null)
+    setFiles([])
     setDraft(null)
     setMissingFields([])
     setHash('')
     extract.reset()
     upload.reset()
+    bulkUpload.reset()
   }
 
-  if (extract.isPending) return <LoadingScreen text="Analizando CV…" />
-  if (upload.isPending)  return <LoadingScreen text="Guardando CV…" />
+  // ── Loading screens ──────────────────────────────────────────────────────────
+  if (extract.isPending)    return <LoadingScreen text="Analizando CV…" />
+  if (upload.isPending)     return <LoadingScreen text="Guardando CV…" />
+  if (bulkUpload.isPending) return <LoadingScreen text={`Subiendo ${files.length} CVs…`} />
 
+  // ── Success screens ──────────────────────────────────────────────────────────
   if (upload.isSuccess) {
     return (
       <div className="min-h-screen bg-[#0A0A0F] py-10 px-4">
@@ -364,6 +441,17 @@ export default function UploadPage() {
     )
   }
 
+  if (bulkUpload.isSuccess) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0F] py-10 px-4">
+        <div className="max-w-lg mx-auto bg-[#111118] border border-slate-800 rounded-2xl p-8">
+          <BulkSuccessCard result={bulkUpload.data} onReset={resetAll} />
+        </div>
+      </div>
+    )
+  }
+
+  // ── Extract error ────────────────────────────────────────────────────────────
   if (extract.isError) {
     return (
       <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center p-4">
@@ -381,7 +469,10 @@ export default function UploadPage() {
     )
   }
 
-  const step: 1 | 2 = draft ? 2 : 1
+  // ── Determine current state ──────────────────────────────────────────────────
+  const isSingleFlow = files.length === 1
+  const isMultiFlow  = files.length > 1
+  const step: 1 | 2  = isSingleFlow && draft ? 2 : 1
 
   return (
     <div className="min-h-screen bg-[#0A0A0F] py-10 px-4">
@@ -389,16 +480,62 @@ export default function UploadPage() {
         <h1 className="text-xl font-bold text-slate-100 mb-6">Cargar CV al banco</h1>
 
         <div className="bg-[#111118] border border-slate-800 rounded-2xl p-6">
-          <StepIndicator step={step} />
+          {/* Step indicator only shows in single-file flow */}
+          {isSingleFlow && <StepIndicator step={step} />}
 
-          {step === 1 && <FilePicker onFile={handleFile} />}
+          {/* Step 1: file picker (always shown unless in single-file step 2) */}
+          {step === 1 && (
+            <div className="space-y-4">
+              <MultiFilePicker files={files} onFiles={setFiles as (files: File[] | ((prev: File[]) => File[])) => void} />
 
+              {/* Single-file CTA */}
+              {isSingleFlow && (
+                <button
+                  type="button"
+                  onClick={handleExtract}
+                  className="w-full bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-700 hover:to-sky-600 text-white font-semibold py-2.5 rounded-xl transition-all"
+                >
+                  Extraer datos del CV →
+                </button>
+              )}
+
+              {/* Multi-file CTA */}
+              {isMultiFlow && (
+                <button
+                  type="button"
+                  onClick={handleBulkSubmit}
+                  className="w-full bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-700 hover:to-sky-600 text-white font-semibold py-2.5 rounded-xl transition-all"
+                >
+                  Subir {files.length} CVs
+                </button>
+              )}
+
+              {/* No files selected */}
+              {files.length === 0 && (
+                <button
+                  type="button"
+                  disabled
+                  className="w-full bg-slate-700 text-slate-500 font-semibold py-2.5 rounded-xl cursor-not-allowed"
+                >
+                  Seleccioná archivos para continuar
+                </button>
+              )}
+
+              {bulkUpload.isError && (
+                <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2.5">
+                  {getErrorMessage(bulkUpload.error)}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Step 2: contact form (single-file flow only) */}
           {step === 2 && draft && (
             <ContactForm
               draft={draft}
               missingFields={missingFields}
               onChange={setDraft}
-              onSubmit={handleSubmit}
+              onSubmit={handleSingleSubmit}
               onBack={resetAll}
               isSubmitting={upload.isPending}
               submitError={upload.isError ? getErrorMessage(upload.error) : null}

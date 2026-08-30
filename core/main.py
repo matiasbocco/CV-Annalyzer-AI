@@ -385,13 +385,54 @@ async def extract_cv_contact(
 
 @app.post("/cvs/batch")
 async def upload_candidate_cv(
-    file: Annotated[UploadFile, File(description="Candidate's CV (PDF, DOCX, JPG, PNG, WEBP)")],
-    contact_info: Annotated[str, Form(description="JSON contact fields")] = "{}",
-    expected_hash: Annotated[str, Form(description="Hash from extract-contact step")] = "",
+    files: Annotated[list[UploadFile], File(description="One or more CVs (PDF, DOCX, JPG, PNG, WEBP)")],
+    contact_info: Annotated[str, Form(description="JSON contact fields (single-file flow only)")] = "{}",
+    expected_hash: Annotated[str, Form(description="Hash from extract-contact step (single-file flow only)")] = "",
     db: AsyncSession = Depends(get_db),
 ):
     import json as _json
+    import logging as _logging
 
+    if not files:
+        raise HTTPException(400, "Seleccioná al menos un archivo.")
+    if len(files) > _MAX_UPLOAD_FILES:
+        raise HTTPException(400, f"Se pueden subir como máximo {_MAX_UPLOAD_FILES} CVs por vez.")
+
+    # ── Multi-file bulk mode ──────────────────────────────────────────────────
+    if len(files) > 1:
+        added = 0
+        duplicates = 0
+        failed = 0
+        cv_ids: list[str] = []
+
+        for upload_file in files:
+            fname = upload_file.filename or "cv.pdf"
+            try:
+                raw  = await upload_file.read()
+                text = await extract_text_from_bytes(raw, fname)
+                if not text.strip():
+                    failed += 1
+                    continue
+                cv, is_new = await ingest_cv(db, fname, text)
+                await db.commit()
+                cv_ids.append(str(cv.id))
+                if is_new:
+                    added += 1
+                else:
+                    duplicates += 1
+            except Exception as exc:
+                _logging.getLogger(__name__).error("Bulk CV ingest failed (%s): %s", fname, exc)
+                failed += 1
+
+        return JSONResponse(status_code=200, content={
+            "added": added,
+            "duplicates": duplicates,
+            "failed": failed,
+            "cv_ids": cv_ids,
+        })
+
+    # ── Single-file confirmed flow (2-step with contact form) ─────────────────
+    file = files[0]
     fname = file.filename or "cv.pdf"
     try:
         raw  = await file.read()
@@ -431,8 +472,7 @@ async def upload_candidate_cv(
         cv, is_new = await ingest_cv(db, fname, text, contact_override=contact_override)
         await db.commit()
     except Exception as exc:
-        import logging
-        logging.getLogger(__name__).error("CV ingest failed: %s", exc)
+        _logging.getLogger(__name__).error("CV ingest failed: %s", exc)
         return JSONResponse(status_code=400, content={
             "status": "failed", "filename": fname, "cv_id": None,
             "message": "Error interno al guardar el CV.",
