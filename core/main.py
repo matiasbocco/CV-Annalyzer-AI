@@ -504,6 +504,12 @@ async def match_job(
 
 # ── Job status endpoints ───────────────────────────────────────────────────────
 
+def _job_failure_message(result) -> str:
+    if "No suitable candidates found in the bank" in str(result.result):
+        return "Todavía no hay CVs en el banco que coincidan con esta búsqueda. Subí currículums antes de buscar candidatos."
+    return "El análisis falló. Intentá de nuevo."
+
+
 @app.get("/jobs/{job_id}")
 async def get_job_status(
     job_id: str,
@@ -517,7 +523,7 @@ async def get_job_status(
     if state == "SUCCESS":
         return {"status": "completed", "result": result.get()}
     if state in ("FAILURE", "REVOKED"):
-        return {"status": "failed", "error": "El análisis falló. Intentá de nuevo."}
+        return {"status": "failed", "error": _job_failure_message(result)}
     # PENDING / STARTED / RETRY — still running
     return {"status": "pending"}
 
@@ -535,7 +541,7 @@ async def get_job_result(
     if state == "SUCCESS":
         return result.get()
     if state in ("FAILURE", "REVOKED"):
-        raise HTTPException(500, "El análisis falló. Intentá de nuevo.")
+        raise HTTPException(500, _job_failure_message(result))
     raise HTTPException(404, "El análisis todavía está en proceso.")
 
 
