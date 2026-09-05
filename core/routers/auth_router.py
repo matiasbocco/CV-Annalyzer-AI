@@ -9,6 +9,7 @@ from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.config import settings
 from core.db.database import get_db
 from core.db.models import User
 from core.services.auth_service import (
@@ -111,8 +112,8 @@ async def login(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=False,  # Set to True in production with HTTPS
-        samesite="lax",
+        secure=settings.cookie_secure,  # True in production (HTTPS) — see .env COOKIE_SECURE
+        samesite=settings.cookie_samesite,
         max_age=7 * 24 * 60 * 60,  # 7 days in seconds
     )
 
@@ -164,8 +165,8 @@ async def refresh_token(
         key="refresh_token",
         value=new_refresh_token,
         httponly=True,
-        secure=False,
-        samesite="lax",
+        secure=settings.cookie_secure,
+        samesite=settings.cookie_samesite,
         max_age=7 * 24 * 60 * 60,
     )
 
@@ -205,8 +206,9 @@ async def forgot_password(
         reset_token = create_reset_token(user.id)
         # TODO: Send email with reset link containing the token
         # For now, print to console for development
+        reset_origin = settings.cors_origins[0] if settings.cors_origins else "http://localhost:5173"
         print(f"[PASSWORD RESET] Token for {user.email}: {reset_token}")
-        print(f"[PASSWORD RESET] Reset link: http://localhost:5173/reset-password?token={reset_token}")
+        print(f"[PASSWORD RESET] Reset link: {reset_origin}/reset-password?token={reset_token}")
 
     # Always return the same message to prevent user enumeration
     return ForgotPasswordResponse()

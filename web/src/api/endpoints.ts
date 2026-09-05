@@ -1,6 +1,5 @@
 import client from './client'
 import type {
-  AdminCV,
   AdminUser,
   AnalysisHistoryResponse,
   AnalyzeResponse,

@@ -22,6 +22,8 @@ Design choices:
 import logging
 from typing import Optional
 
+from core.config import settings
+
 log = logging.getLogger(__name__)
 
 _chroma_client = None
@@ -34,7 +36,7 @@ def _get_collection():
         return _collection
     try:
         import chromadb  # deferred so startup doesn't fail if chromadb is missing
-        _chroma_client = chromadb.PersistentClient(path="./chroma_db")
+        _chroma_client = chromadb.PersistentClient(path=settings.chroma_db_path)
         _collection = _chroma_client.get_or_create_collection(
             name="cv_bank",
             metadata={"hnsw:space": "cosine"},

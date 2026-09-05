@@ -77,7 +77,8 @@
       "Bash(dir alembic *)",
       "Bash(dir web\\\\src /s /b)",
       "Bash(findstr \".tsx\")",
-      "Bash(tasklist)"
+      "Bash(tasklist)",
+      "Bash(Remove-Item _hunk1.patch)"
     ]
   }
 }
