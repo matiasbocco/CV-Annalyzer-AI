@@ -1,7 +1,9 @@
 import axios from 'axios'
 import { clearToken, getToken, setToken } from '../auth'
 
-const BASE_URL = 'http://localhost:8000'
+// In production, set VITE_API_URL at build time (e.g. VITE_API_URL=https://api.example.com).
+// Falls back to localhost:8000 when unset, matching local dev with no extra setup.
+const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
 // Separate instance used ONLY for token refresh to avoid interceptor recursion.
 // No request/response interceptors — failure propagates as-is to the caller.

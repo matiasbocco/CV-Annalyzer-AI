@@ -118,7 +118,7 @@ app = FastAPI(title="CV Analyzer AI", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=settings.cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
     allow_credentials=True,  # Required for httpOnly cookies
