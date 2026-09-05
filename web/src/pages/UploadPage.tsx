@@ -138,7 +138,7 @@ function MultiFilePicker({
   onFiles,
 }: {
   files: File[]
-  onFiles: (files: File[]) => void
+  onFiles: (files: File[] | ((prev: File[]) => File[])) => void
 }) {
   const onDrop = useCallback((accepted: File[]) => {
     onFiles((prev: File[]) => {
@@ -486,7 +486,7 @@ export default function UploadPage() {
           {/* Step 1: file picker (always shown unless in single-file step 2) */}
           {step === 1 && (
             <div className="space-y-4">
-              <MultiFilePicker files={files} onFiles={setFiles as (files: File[] | ((prev: File[]) => File[])) => void} />
+              <MultiFilePicker files={files} onFiles={setFiles} />
 
               {/* Single-file CTA */}
               {isSingleFlow && (
