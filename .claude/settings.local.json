@@ -78,7 +78,8 @@
       "Bash(dir web\\\\src /s /b)",
       "Bash(findstr \".tsx\")",
       "Bash(tasklist)",
-      "Bash(Remove-Item _hunk1.patch)"
+      "Bash(Remove-Item _hunk1.patch)",
+      "Bash(gh pr *)"
     ]
   }
 }
