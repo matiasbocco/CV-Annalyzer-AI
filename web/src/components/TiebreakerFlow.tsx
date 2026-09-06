@@ -211,7 +211,10 @@ export default function TiebreakerFlow({ analysisId, ranking, onComplete }: Prop
         )}
 
         <button
-          onClick={() => onComplete(buildUpdatedRanking(ranking, finalRanking))}
+          onClick={() => {
+            onComplete(buildUpdatedRanking(ranking, finalRanking))
+            setPhase({ tag: 'hidden' })
+          }}
           className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2 rounded-lg text-sm transition-colors"
         >
           {t.tieView}
