@@ -176,63 +176,124 @@ async def reset_user_password(
 # ── Metrics ───────────────────────────────────────────────────────────────────
 
 
-@router.get("/metrics")
-async def get_metrics(
-    current_user: User = Depends(require_admin),
-    db: AsyncSession = Depends(get_db),
-):
+async def _compute_analysis_metrics(
+    db: AsyncSession, user_id: Optional[_uuid.UUID] = None
+) -> dict:
+    """Analysis-scoped metrics. When user_id is given, filter to that user."""
     now = datetime.now(timezone.utc)
     thirty_days_ago = now - timedelta(days=30)
-    three_months_ago = now - timedelta(days=90)
-    four_months_ago = now - timedelta(days=_CV_TTL_DAYS)
+
+    def _scope(stmt):
+        return stmt.where(Analysis.user_id == user_id) if user_id else stmt
 
     total_analyses: int = (
-        await db.execute(select(func.count()).select_from(Analysis))
+        await db.execute(_scope(select(func.count()).select_from(Analysis)))
     ).scalar_one()
 
     analyses_last_30: int = (
         await db.execute(
-            select(func.count())
-            .select_from(Analysis)
-            .where(Analysis.created_at >= thirty_days_ago)
+            _scope(
+                select(func.count())
+                .select_from(Analysis)
+                .where(Analysis.created_at >= thirty_days_ago)
+            )
         )
     ).scalar_one()
 
     # Group by calendar date (MySQL func.date strips time component).
     day_rows = (
         await db.execute(
-            select(
-                func.date(Analysis.created_at).label("date"),
-                func.count().label("count"),
+            _scope(
+                select(
+                    func.date(Analysis.created_at).label("date"),
+                    func.count().label("count"),
+                )
+                .where(Analysis.created_at >= thirty_days_ago)
+                .group_by(func.date(Analysis.created_at))
+                .order_by(func.date(Analysis.created_at))
             )
-            .where(Analysis.created_at >= thirty_days_ago)
-            .group_by(func.date(Analysis.created_at))
-            .order_by(func.date(Analysis.created_at))
         )
     ).all()
     analyses_by_day = [{"date": str(r.date), "count": r.count} for r in day_rows]
 
-    cat_rows = (
-        await db.execute(
-            select(
-                JobCategory.slug,
-                JobCategory.display_name,
-                func.count(Analysis.id).label("count"),
-            )
-            .join(Analysis, Analysis.job_category_id == JobCategory.id)
-            .group_by(JobCategory.id, JobCategory.slug, JobCategory.display_name)
-            .order_by(func.count(Analysis.id).desc())
-            .limit(5)
+    cat_stmt = (
+        select(
+            JobCategory.slug,
+            JobCategory.display_name,
+            func.count(Analysis.id).label("count"),
         )
-    ).all()
+        .join(Analysis, Analysis.job_category_id == JobCategory.id)
+        .group_by(JobCategory.id, JobCategory.slug, JobCategory.display_name)
+        .order_by(func.count(Analysis.id).desc())
+        .limit(5)
+    )
+    if user_id:
+        cat_stmt = cat_stmt.where(Analysis.user_id == user_id)
+    cat_rows = (await db.execute(cat_stmt)).all()
     top_categories = [
         {"slug": r.slug, "display_name": r.display_name, "count": r.count}
         for r in cat_rows
     ]
 
-    avg_rating = (
-        await db.execute(select(func.avg(Feedback.rating)))
-    ).scalar_one()
+    avg_stmt = select(func.avg(Feedback.rating))
+    if user_id:
+        avg_stmt = avg_stmt.join(
+            Analysis, Analysis.id == Feedback.analysis_id
+        ).where(Analysis.user_id == user_id)
+    avg_rating = (await db.execute(avg_stmt)).scalar_one()
+
+    return {
+        "total_analyses": total_analyses,
+        "analyses_last_30_days": analyses_last_30,
+        "analyses_by_day": analyses_by_day,
+        "top_categories": top_categories,
+        "average_rating": round(float(avg_rating), 2) if avg_rating else None,
+    }
+
+
+async def _compute_analysis_costs(
+    db: AsyncSession, user_id: Optional[_uuid.UUID] = None
+) -> dict:
+    """Analysis-scoped cost estimation. When user_id is given, filter to that user."""
+    stmt = select(func.count()).select_from(Analysis)
+    if user_id:
+        stmt = stmt.where(Analysis.user_id == user_id)
+    total_analyses: int = (await db.execute(stmt)).scalar_one()
+
+    estimated_embedding_calls = total_analyses * _EMBEDDINGS_PER_ANALYSIS
+
+    ranking_cost = total_analyses * _COST_RANKING
+    category_cost = total_analyses * _COST_CATEGORY
+    contact_cost = total_analyses * _COST_CONTACT
+    embedding_cost = estimated_embedding_calls * _COST_EMBEDDING
+    total_cost = ranking_cost + category_cost + contact_cost + embedding_cost
+
+    return {
+        "total_analyses": total_analyses,
+        "estimated_ranking_calls": total_analyses,
+        "estimated_category_calls": total_analyses,
+        "estimated_contact_extraction_calls": total_analyses,
+        "estimated_embedding_calls": estimated_embedding_calls,
+        "estimated_total_cost_usd": round(total_cost, 4),
+        "cost_breakdown": {
+            "ranking": round(ranking_cost, 4),
+            "category": round(category_cost, 4),
+            "contact": round(contact_cost, 4),
+            "embeddings": round(embedding_cost, 4),
+        },
+    }
+
+
+@router.get("/metrics")
+async def get_metrics(
+    current_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    now = datetime.now(timezone.utc)
+    three_months_ago = now - timedelta(days=90)
+    four_months_ago = now - timedelta(days=_CV_TTL_DAYS)
+
+    analysis_metrics = await _compute_analysis_metrics(db)
 
     total_cvs: int = (
         await db.execute(select(func.count()).select_from(CV))
@@ -275,11 +336,7 @@ async def get_metrics(
     ).scalar_one()
 
     return {
-        "total_analyses": total_analyses,
-        "analyses_last_30_days": analyses_last_30,
-        "analyses_by_day": analyses_by_day,
-        "top_categories": top_categories,
-        "average_rating": round(float(avg_rating), 2) if avg_rating else None,
+        **analysis_metrics,
         "total_cvs_in_bank": total_cvs,
         "active_cvs": active_cvs,
         "expiring_soon_cvs": expiring_soon,
@@ -303,32 +360,57 @@ async def get_costs(
     current_user: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    total_analyses: int = (
-        await db.execute(select(func.count()).select_from(Analysis))
-    ).scalar_one()
+    return await _compute_analysis_costs(db)
 
-    estimated_embedding_calls = total_analyses * _EMBEDDINGS_PER_ANALYSIS
 
-    ranking_cost = total_analyses * _COST_RANKING
-    category_cost = total_analyses * _COST_CATEGORY
-    contact_cost = total_analyses * _COST_CONTACT
-    embedding_cost = estimated_embedding_calls * _COST_EMBEDDING
-    total_cost = ranking_cost + category_cost + contact_cost + embedding_cost
+# ── Per-user detail ───────────────────────────────────────────────────────────
+
+
+async def _get_user_or_404(db: AsyncSession, user_id: str) -> User:
+    try:
+        uid = _uuid.UUID(user_id)
+    except ValueError:
+        raise HTTPException(400, "ID de usuario inválido.")
+
+    user = (
+        await db.execute(select(User).where(User.id == uid))
+    ).scalar_one_or_none()
+    if user is None:
+        raise HTTPException(404, "Usuario no encontrado.")
+    return user
+
+
+@router.get("/users/{user_id}/metrics")
+async def get_user_metrics(
+    user_id: str,
+    current_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    user = await _get_user_or_404(db, user_id)
+
+    if user.first_name or user.last_name:
+        full_name = f"{user.first_name or ''} {user.last_name or ''}".strip()
+    else:
+        full_name = None
+
+    analysis_metrics = await _compute_analysis_metrics(db, user_id=user.id)
 
     return {
-        "total_analyses": total_analyses,
-        "estimated_ranking_calls": total_analyses,
-        "estimated_category_calls": total_analyses,
-        "estimated_contact_extraction_calls": total_analyses,
-        "estimated_embedding_calls": estimated_embedding_calls,
-        "estimated_total_cost_usd": round(total_cost, 4),
-        "cost_breakdown": {
-            "ranking": round(ranking_cost, 4),
-            "category": round(category_cost, 4),
-            "contact": round(contact_cost, 4),
-            "embeddings": round(embedding_cost, 4),
-        },
+        "user_id": str(user.id),
+        "email": user.email,
+        "full_name": full_name,
+        **analysis_metrics,
     }
+
+
+@router.get("/users/{user_id}/costs")
+async def get_user_costs(
+    user_id: str,
+    current_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    user = await _get_user_or_404(db, user_id)
+    return await _compute_analysis_costs(db, user_id=user.id)
 
 
 # ── CV bank management ────────────────────────────────────────────────────────

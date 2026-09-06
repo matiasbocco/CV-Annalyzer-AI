@@ -12,6 +12,8 @@ import {
   adminExpireCVs,
   adminGetCosts,
   adminGetMetrics,
+  adminGetUserCosts,
+  adminGetUserMetrics,
   adminListCVs,
   adminListUsers,
   adminPatchUser,
@@ -23,6 +25,7 @@ import type {
   CostsResponse,
   CVListResponse,
   MetricsResponse,
+  UserMetricsResponse,
 } from '../api/types'
 import { cn } from '../lib/utils'
 
@@ -118,7 +121,7 @@ function Badge({ active }: { active: boolean }) {
 
 // ── Tab 1 — Usuarios ──────────────────────────────────────────────────────────
 
-function UsuariosTab() {
+function UsuariosTab({ onViewDetail }: { onViewDetail: (u: AdminUser) => void }) {
   const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -264,6 +267,12 @@ function UsuariosTab() {
                   <td className="py-3 pr-4 text-slate-300">{u.analysis_count}</td>
                   <td className="py-3 pr-4">
                     <div className="flex gap-2">
+                      <button
+                        onClick={() => onViewDetail(u)}
+                        className="text-xs px-2 py-1 rounded bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 transition-colors"
+                      >
+                        Ver detalle
+                      </button>
                       <button
                         onClick={() => handleToggleActive(u)}
                         className={cn(
@@ -432,21 +441,26 @@ function MetricCard({
   )
 }
 
-function MetricasTab() {
-  const [metrics, setMetrics] = useState<MetricsResponse | null>(null)
+function MetricasTab({ userId }: { userId?: string }) {
+  const [metrics, setMetrics] = useState<MetricsResponse | UserMetricsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    adminGetMetrics()
-      .then(setMetrics)
-      .catch(() => setError('No se pudieron cargar las métricas.'))
-      .finally(() => setLoading(false))
-  }, [])
+    let active = true
+    const req = userId ? adminGetUserMetrics(userId) : adminGetMetrics()
+    req
+      .then((d) => { if (active) { setMetrics(d); setLoading(false) } })
+      .catch(() => { if (active) { setError('No se pudieron cargar las métricas.'); setLoading(false) } })
+    return () => { active = false }
+  }, [userId])
 
   if (loading) return <p className="text-slate-400 text-sm">Cargando métricas...</p>
   if (error) return <p className="text-red-400 text-sm">{error}</p>
   if (!metrics) return null
+
+  // CV-bank and user-wide sections only exist in the global MetricsResponse.
+  const global = 'total_cvs_in_bank' in metrics ? metrics : null
 
   const chartData = fillDays(metrics.analyses_by_day)
   const maxCat = Math.max(...metrics.top_categories.map((c) => c.count), 1)
@@ -461,7 +475,7 @@ function MetricasTab() {
           label="Rating promedio"
           value={metrics.average_rating != null ? `${fmt(metrics.average_rating)} / 5` : '—'}
         />
-        <MetricCard label="CVs en banco" value={metrics.total_cvs_in_bank} />
+        {global && <MetricCard label="CVs en banco" value={global.total_cvs_in_bank} />}
       </div>
 
       {/* Bar chart */}
@@ -519,29 +533,33 @@ function MetricasTab() {
       )}
 
       {/* CV bank health */}
-      <div>
-        <p className="text-sm font-medium text-slate-300 mb-3">Estado del banco de CVs</p>
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 text-center">
-            <p className="text-2xl font-bold text-emerald-300">{metrics.active_cvs}</p>
-            <p className="text-xs text-emerald-400 mt-1">Activos</p>
-          </div>
-          <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-center">
-            <p className="text-2xl font-bold text-amber-300">{metrics.expiring_soon_cvs}</p>
-            <p className="text-xs text-amber-400 mt-1">Próximos a expirar</p>
-          </div>
-          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-center">
-            <p className="text-2xl font-bold text-red-400">{metrics.expired_cvs}</p>
-            <p className="text-xs text-red-400 mt-1">Expirados</p>
+      {global && (
+        <div>
+          <p className="text-sm font-medium text-slate-300 mb-3">Estado del banco de CVs</p>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 text-center">
+              <p className="text-2xl font-bold text-emerald-300">{global.active_cvs}</p>
+              <p className="text-xs text-emerald-400 mt-1">Activos</p>
+            </div>
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-center">
+              <p className="text-2xl font-bold text-amber-300">{global.expiring_soon_cvs}</p>
+              <p className="text-xs text-amber-400 mt-1">Próximos a expirar</p>
+            </div>
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-center">
+              <p className="text-2xl font-bold text-red-400">{global.expired_cvs}</p>
+              <p className="text-xs text-red-400 mt-1">Expirados</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Users */}
-      <div className="grid grid-cols-2 gap-4">
-        <MetricCard label="Usuarios totales" value={metrics.total_users} />
-        <MetricCard label="Usuarios activos" value={metrics.active_users} />
-      </div>
+      {global && (
+        <div className="grid grid-cols-2 gap-4">
+          <MetricCard label="Usuarios totales" value={global.total_users} />
+          <MetricCard label="Usuarios activos" value={global.active_users} />
+        </div>
+      )}
     </div>
   )
 }
@@ -709,17 +727,19 @@ const COST_ROWS: {
   { label: 'Embeddings', key: 'estimated_embedding_calls', unit: 0.0001, breakdownKey: 'embeddings' },
 ]
 
-function CostosTab() {
+function CostosTab({ userId }: { userId?: string }) {
   const [costs, setCosts] = useState<CostsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    adminGetCosts()
-      .then(setCosts)
-      .catch(() => setError('No se pudieron cargar los costos estimados.'))
-      .finally(() => setLoading(false))
-  }, [])
+    let active = true
+    const req = userId ? adminGetUserCosts(userId) : adminGetCosts()
+    req
+      .then((d) => { if (active) { setCosts(d); setLoading(false) } })
+      .catch(() => { if (active) { setError('No se pudieron cargar los costos estimados.'); setLoading(false) } })
+    return () => { active = false }
+  }, [userId])
 
   if (loading) return <p className="text-slate-400 text-sm">Cargando costos...</p>
   if (error) return <p className="text-red-400 text-sm">{error}</p>
@@ -797,8 +817,40 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]['id']
 
+function userDisplayName(u: AdminUser): string {
+  const name = `${u.first_name ?? ''} ${u.last_name ?? ''}`.trim()
+  return name || u.email
+}
+
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<TabId>('usuarios')
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null)
+
+  if (selectedUser) {
+    return (
+      <div className="min-h-screen bg-[#111118] px-4 py-8">
+        <div className="max-w-5xl mx-auto space-y-6">
+          <button
+            onClick={() => setSelectedUser(null)}
+            className="text-sm text-slate-400 hover:text-slate-200"
+          >
+            ← Volver a usuarios
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-100">
+              {userDisplayName(selectedUser)}
+            </h1>
+            <p className="text-slate-400 text-sm mt-1">{selectedUser.email}</p>
+          </div>
+
+          <div className="space-y-8">
+            <MetricasTab userId={selectedUser.id} />
+            <CostosTab userId={selectedUser.id} />
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-[#111118] px-4 py-8">
@@ -832,7 +884,7 @@ export default function AdminPage() {
 
         {/* Tab content */}
         <div>
-          {activeTab === 'usuarios' && <UsuariosTab />}
+          {activeTab === 'usuarios' && <UsuariosTab onViewDetail={setSelectedUser} />}
           {activeTab === 'metricas' && <MetricasTab />}
           {activeTab === 'banco' && <BancoCVsTab />}
           {activeTab === 'costos' && <CostosTab />}
