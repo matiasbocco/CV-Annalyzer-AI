@@ -75,6 +75,19 @@ export interface MetricsResponse {
   active_users: number
 }
 
+// ── Admin — per-user detail ───────────────────────────────────────────────────
+
+export interface UserMetricsResponse {
+  user_id: string
+  email: string
+  full_name: string | null
+  total_analyses: number
+  analyses_last_30_days: number
+  analyses_by_day: DayCount[]
+  top_categories: CategoryCount[]
+  average_rating: number | null
+}
+
 // ── Admin — costs ─────────────────────────────────────────────────────────────
 
 export interface CostsResponse {

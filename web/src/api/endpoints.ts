@@ -19,6 +19,7 @@ import type {
   TiebreakerAnswer,
   TiebreakerAnswerResponse,
   UploadResponse,
+  UserMetricsResponse,
 } from './types'
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -194,6 +195,16 @@ export async function adminGetMetrics(): Promise<MetricsResponse> {
 
 export async function adminGetCosts(): Promise<CostsResponse> {
   const { data } = await client.get<CostsResponse>('/admin/costs')
+  return data
+}
+
+export async function adminGetUserMetrics(userId: string): Promise<UserMetricsResponse> {
+  const { data } = await client.get<UserMetricsResponse>(`/admin/users/${userId}/metrics`)
+  return data
+}
+
+export async function adminGetUserCosts(userId: string): Promise<CostsResponse> {
+  const { data } = await client.get<CostsResponse>(`/admin/users/${userId}/costs`)
   return data
 }
 
