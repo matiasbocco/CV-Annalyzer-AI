@@ -207,7 +207,7 @@ export default function HistoryPage() {
             </div>
 
             {/* Pagination */}
-            <div className="flex items-center justify-between text-sm text-slate-400 pt-2">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-slate-400 pt-2">
               <span>
                 {data.total} análisis en total · página {data.page} de {data.total_pages}
               </span>
