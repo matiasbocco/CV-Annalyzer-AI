@@ -86,7 +86,7 @@ export default function MatchPage() {
       <LangProvider value={lang}>
         <div className="min-h-screen bg-[#0A0A0F] py-10 px-4">
           <div className="max-w-3xl mx-auto space-y-5">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
               <h1 className="text-xl font-bold text-slate-100">Candidatos del banco</h1>
               <button
                 onClick={resetAll}

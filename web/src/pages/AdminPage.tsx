@@ -212,11 +212,11 @@ function UsuariosTab({ onViewDetail }: { onViewDetail: (u: AdminUser) => void })
         </div>
       )}
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h2 className="text-slate-100 font-semibold">Usuarios del sistema</h2>
         <button
           onClick={() => setShowCreate(true)}
-          className="bg-sky-600 hover:bg-sky-500 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors"
+          className="bg-sky-600 hover:bg-sky-500 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors w-full sm:w-auto"
         >
           + Nuevo usuario
         </button>
@@ -304,7 +304,7 @@ function UsuariosTab({ onViewDetail }: { onViewDetail: (u: AdminUser) => void })
       {showCreate && (
         <Modal title="Nuevo usuario" onClose={() => setShowCreate(false)}>
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm text-slate-300 mb-1">Nombre</label>
                 <input
@@ -519,7 +519,7 @@ function MetricasTab({ userId }: { userId?: string }) {
           <div className="space-y-2">
             {metrics.top_categories.map((c) => (
               <div key={c.slug} className="flex items-center gap-3">
-                <span className="text-sm text-slate-300 w-48 truncate">{c.display_name}</span>
+                <span className="text-sm text-slate-300 w-28 sm:w-48 truncate flex-shrink-0">{c.display_name}</span>
                 <div className="flex-1 bg-slate-800 rounded-full h-2">
                   <div
                     className="bg-sky-500 h-2 rounded-full"
@@ -671,12 +671,12 @@ function BancoCVsTab() {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h2 className="text-slate-100 font-semibold">Banco de CVs</h2>
         <button
           onClick={handleExpire}
           disabled={expiring}
-          className="bg-red-600/80 hover:bg-red-600 disabled:opacity-50 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors"
+          className="bg-red-600/80 hover:bg-red-600 disabled:opacity-50 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors w-full sm:w-auto"
         >
           {expiring ? 'Expirando...' : 'Forzar expiración de CVs viejos'}
         </button>
@@ -743,7 +743,7 @@ function BancoCVsTab() {
           </div>
 
           {/* Pagination */}
-          <div className="flex items-center justify-between text-sm text-slate-400">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-slate-400">
             <span>
               {data.total} CV(s) en total · página {data.page} de {data.total_pages}
             </span>
@@ -821,7 +821,7 @@ function CostosTab({ userId }: { userId?: string }) {
         />
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
         <table className="w-full text-sm text-left">
           <thead>
             <tr className="border-b border-slate-800 bg-slate-800/40">
@@ -922,13 +922,13 @@ export default function AdminPage() {
         </div>
 
         {/* Tab bar */}
-        <div className="flex gap-1 border-b border-slate-800">
+        <div className="flex gap-1 border-b border-slate-800 overflow-x-auto">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors',
+                'px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 -mb-px whitespace-nowrap transition-colors',
                 activeTab === tab.id
                   ? 'border-amber-400 text-amber-300'
                   : 'border-transparent text-slate-400 hover:text-slate-200',
