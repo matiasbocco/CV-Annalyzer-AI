@@ -14,6 +14,7 @@ import {
   adminGetMetrics,
   adminGetUserCosts,
   adminGetUserMetrics,
+  adminDeleteCV,
   adminListCVs,
   adminListUsers,
   adminPatchUser,
@@ -211,11 +212,11 @@ function UsuariosTab({ onViewDetail }: { onViewDetail: (u: AdminUser) => void })
         </div>
       )}
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h2 className="text-slate-100 font-semibold">Usuarios del sistema</h2>
         <button
           onClick={() => setShowCreate(true)}
-          className="bg-sky-600 hover:bg-sky-500 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors"
+          className="bg-sky-600 hover:bg-sky-500 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors w-full sm:w-auto"
         >
           + Nuevo usuario
         </button>
@@ -303,7 +304,7 @@ function UsuariosTab({ onViewDetail }: { onViewDetail: (u: AdminUser) => void })
       {showCreate && (
         <Modal title="Nuevo usuario" onClose={() => setShowCreate(false)}>
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm text-slate-300 mb-1">Nombre</label>
                 <input
@@ -518,7 +519,7 @@ function MetricasTab({ userId }: { userId?: string }) {
           <div className="space-y-2">
             {metrics.top_categories.map((c) => (
               <div key={c.slug} className="flex items-center gap-3">
-                <span className="text-sm text-slate-300 w-48 truncate">{c.display_name}</span>
+                <span className="text-sm text-slate-300 w-28 sm:w-48 truncate flex-shrink-0">{c.display_name}</span>
                 <div className="flex-1 bg-slate-800 rounded-full h-2">
                   <div
                     className="bg-sky-500 h-2 rounded-full"
@@ -572,6 +573,8 @@ function BancoCVsTab() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [expiring, setExpiring] = useState(false)
+  const [deletingCv, setDeletingCv] = useState<AdminCV | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
   const { toast, show } = useToast()
 
   const load = useCallback(async (p: number) => {
@@ -601,6 +604,22 @@ function BancoCVsTab() {
     }
   }
 
+  async function handleConfirmDelete() {
+    if (!deletingCv) return
+    setDeleteLoading(true)
+    try {
+      await adminDeleteCV(deletingCv.id)
+      show('CV borrado permanentemente.')
+      setDeletingCv(null)
+      load(page)
+    } catch {
+      show('Error al borrar el CV.', 'error')
+      setDeletingCv(null)
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
+
   function cvStatus(cv: AdminCV) {
     if (cv.is_expired) return { label: 'Expirado', cls: 'bg-red-500/20 text-red-400' }
     if (cv.days_until_expiry <= 30) return { label: 'Por expirar', cls: 'bg-amber-500/20 text-amber-300' }
@@ -609,6 +628,36 @@ function BancoCVsTab() {
 
   return (
     <div className="space-y-4">
+      {deletingCv && (
+        <Modal title="Borrar CV permanentemente" onClose={() => setDeletingCv(null)}>
+          <p className="text-slate-300 text-sm">
+            ¿Estás seguro que querés borrar el CV de{' '}
+            <span className="text-slate-100 font-medium">
+              {deletingCv.full_name ?? deletingCv.filename}
+            </span>
+            ?
+          </p>
+          <p className="text-red-400 text-sm font-medium">
+            Esta acción es permanente e irreversible. El CV se eliminará de la base de datos y del banco vectorial.
+          </p>
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              onClick={() => setDeletingCv(null)}
+              className="px-4 py-1.5 text-sm rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleConfirmDelete}
+              disabled={deleteLoading}
+              className="px-4 py-1.5 text-sm rounded-lg bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-medium transition-colors"
+            >
+              {deleteLoading ? 'Borrando...' : 'Borrar definitivamente'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
       {toast && (
         <div
           className={cn(
@@ -622,12 +671,12 @@ function BancoCVsTab() {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h2 className="text-slate-100 font-semibold">Banco de CVs</h2>
         <button
           onClick={handleExpire}
           disabled={expiring}
-          className="bg-red-600/80 hover:bg-red-600 disabled:opacity-50 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors"
+          className="bg-red-600/80 hover:bg-red-600 disabled:opacity-50 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors w-full sm:w-auto"
         >
           {expiring ? 'Expirando...' : 'Forzar expiración de CVs viejos'}
         </button>
@@ -643,7 +692,7 @@ function BancoCVsTab() {
             <table className="w-full text-sm text-left">
               <thead>
                 <tr className="border-b border-slate-800">
-                  {['Nombre / Archivo', 'Email', 'Último uso', 'Encontrado', 'Estado', 'Días p/expirar'].map(
+                  {['Nombre / Archivo', 'Email', 'Último uso', 'Encontrado', 'Estado', 'Días p/expirar', 'Acciones'].map(
                     (h) => (
                       <th key={h} className="pb-2 pr-4 text-slate-400 font-medium whitespace-nowrap">
                         {h}
@@ -678,6 +727,14 @@ function BancoCVsTab() {
                       <td className="py-3 pr-4 text-slate-400">
                         {cv.is_expired ? '—' : `${cv.days_until_expiry}d`}
                       </td>
+                      <td className="py-3">
+                        <button
+                          onClick={() => setDeletingCv(cv)}
+                          className="text-xs text-red-400 hover:text-red-300 border border-red-500/30 hover:border-red-400/60 px-2 py-0.5 rounded transition-colors"
+                        >
+                          Borrar
+                        </button>
+                      </td>
                     </tr>
                   )
                 })}
@@ -686,7 +743,7 @@ function BancoCVsTab() {
           </div>
 
           {/* Pagination */}
-          <div className="flex items-center justify-between text-sm text-slate-400">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-sm text-slate-400">
             <span>
               {data.total} CV(s) en total · página {data.page} de {data.total_pages}
             </span>
@@ -764,7 +821,7 @@ function CostosTab({ userId }: { userId?: string }) {
         />
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
         <table className="w-full text-sm text-left">
           <thead>
             <tr className="border-b border-slate-800 bg-slate-800/40">
@@ -865,13 +922,13 @@ export default function AdminPage() {
         </div>
 
         {/* Tab bar */}
-        <div className="flex gap-1 border-b border-slate-800">
+        <div className="flex gap-1 border-b border-slate-800 overflow-x-auto">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors',
+                'px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 -mb-px whitespace-nowrap transition-colors',
                 activeTab === tab.id
                   ? 'border-amber-400 text-amber-300'
                   : 'border-transparent text-slate-400 hover:text-slate-200',

@@ -223,6 +223,11 @@ export async function adminCleanupAnalyses(): Promise<{ deleted_count: number }>
   return data
 }
 
+export async function adminDeleteCV(cvId: string): Promise<{ deleted: boolean; cv_id: string }> {
+  const { data } = await client.delete<{ deleted: boolean; cv_id: string }>(`/admin/cvs/${cvId}`)
+  return data
+}
+
 // ── Analysis history ──────────────────────────────────────────────────────────
 
 export async function getAnalysisHistory(

@@ -101,14 +101,14 @@ export default function TiebreakerFlow({ analysisId, ranking, onComplete }: Prop
 
   if (phase.tag === 'idle') {
     return (
-      <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-center justify-between gap-4">
+      <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
           <p className="text-sm font-semibold text-amber-300">{t.tieTitle}</p>
           <p className="text-xs text-amber-500/80 mt-0.5">{t.tieHint}</p>
         </div>
         <button
           onClick={handleStart}
-          className="flex-shrink-0 bg-amber-500 hover:bg-amber-400 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+          className="flex-shrink-0 w-full sm:w-auto bg-amber-500 hover:bg-amber-400 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
         >
           {t.tieBtn}
         </button>
