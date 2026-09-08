@@ -14,6 +14,7 @@ import {
   adminGetMetrics,
   adminGetUserCosts,
   adminGetUserMetrics,
+  adminDeleteCV,
   adminListCVs,
   adminListUsers,
   adminPatchUser,
@@ -572,6 +573,8 @@ function BancoCVsTab() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [expiring, setExpiring] = useState(false)
+  const [deletingCv, setDeletingCv] = useState<AdminCV | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
   const { toast, show } = useToast()
 
   const load = useCallback(async (p: number) => {
@@ -601,6 +604,22 @@ function BancoCVsTab() {
     }
   }
 
+  async function handleConfirmDelete() {
+    if (!deletingCv) return
+    setDeleteLoading(true)
+    try {
+      await adminDeleteCV(deletingCv.id)
+      show('CV borrado permanentemente.')
+      setDeletingCv(null)
+      load(page)
+    } catch {
+      show('Error al borrar el CV.', 'error')
+      setDeletingCv(null)
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
+
   function cvStatus(cv: AdminCV) {
     if (cv.is_expired) return { label: 'Expirado', cls: 'bg-red-500/20 text-red-400' }
     if (cv.days_until_expiry <= 30) return { label: 'Por expirar', cls: 'bg-amber-500/20 text-amber-300' }
@@ -609,6 +628,36 @@ function BancoCVsTab() {
 
   return (
     <div className="space-y-4">
+      {deletingCv && (
+        <Modal title="Borrar CV permanentemente" onClose={() => setDeletingCv(null)}>
+          <p className="text-slate-300 text-sm">
+            ¿Estás seguro que querés borrar el CV de{' '}
+            <span className="text-slate-100 font-medium">
+              {deletingCv.full_name ?? deletingCv.filename}
+            </span>
+            ?
+          </p>
+          <p className="text-red-400 text-sm font-medium">
+            Esta acción es permanente e irreversible. El CV se eliminará de la base de datos y del banco vectorial.
+          </p>
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              onClick={() => setDeletingCv(null)}
+              className="px-4 py-1.5 text-sm rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleConfirmDelete}
+              disabled={deleteLoading}
+              className="px-4 py-1.5 text-sm rounded-lg bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-medium transition-colors"
+            >
+              {deleteLoading ? 'Borrando...' : 'Borrar definitivamente'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
       {toast && (
         <div
           className={cn(
@@ -643,7 +692,7 @@ function BancoCVsTab() {
             <table className="w-full text-sm text-left">
               <thead>
                 <tr className="border-b border-slate-800">
-                  {['Nombre / Archivo', 'Email', 'Último uso', 'Encontrado', 'Estado', 'Días p/expirar'].map(
+                  {['Nombre / Archivo', 'Email', 'Último uso', 'Encontrado', 'Estado', 'Días p/expirar', 'Acciones'].map(
                     (h) => (
                       <th key={h} className="pb-2 pr-4 text-slate-400 font-medium whitespace-nowrap">
                         {h}
@@ -677,6 +726,14 @@ function BancoCVsTab() {
                       </td>
                       <td className="py-3 pr-4 text-slate-400">
                         {cv.is_expired ? '—' : `${cv.days_until_expiry}d`}
+                      </td>
+                      <td className="py-3">
+                        <button
+                          onClick={() => setDeletingCv(cv)}
+                          className="text-xs text-red-400 hover:text-red-300 border border-red-500/30 hover:border-red-400/60 px-2 py-0.5 rounded transition-colors"
+                        >
+                          Borrar
+                        </button>
                       </td>
                     </tr>
                   )

@@ -1,4 +1,6 @@
 """Admin-only endpoints: user management, metrics, cost estimation, CV bank."""
+import asyncio
+import logging
 import secrets
 import string
 import uuid as _uuid
@@ -7,15 +9,18 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, EmailStr
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.db.database import get_db
-from core.db.models import Analysis, CV, Feedback, JobCategory, User, UserRole
+from core.db.models import Analysis, CV, CVAnalysis, Feedback, JobCategory, User, UserRole
 from core.dependencies import require_admin
 from core.services.auth_service import hash_password
 from core.services.cleanup_service import delete_old_analyses
 from core.services.ttl_service import expire_old_cvs
+from core.services import vector_service
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -484,3 +489,30 @@ async def admin_cleanup_analyses(
     """Manually trigger deletion of analyses older than 7 days."""
     deleted_count = await delete_old_analyses(db)
     return {"deleted_count": deleted_count}
+
+
+@router.delete("/cvs/{cv_id}")
+async def admin_delete_cv(
+    cv_id: str,
+    current_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        uid = _uuid.UUID(cv_id)
+    except ValueError:
+        raise HTTPException(400, "cv_id inválido — debe ser un UUID.")
+
+    cv = (await db.execute(select(CV).where(CV.id == uid))).scalar_one_or_none()
+    if cv is None:
+        raise HTTPException(404, "CV no encontrado.")
+
+    await db.execute(delete(CVAnalysis).where(CVAnalysis.cv_id == uid))
+    await db.execute(delete(CV).where(CV.id == uid))
+    await db.commit()
+
+    try:
+        await asyncio.to_thread(vector_service.remove_cv, str(uid))
+    except Exception as exc:
+        log.error("ChromaDB remove_cv failed for %s after MySQL delete: %s", uid, exc)
+
+    return {"deleted": True, "cv_id": str(uid)}
