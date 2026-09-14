@@ -796,6 +796,7 @@ async def get_analysis(
         "analysis_id": str(analysis.id),
         "ranking": analysis.ranking or [],
         "job_summary": analysis.job_summary,
+        "job_description": analysis.job_description,
         "category": cat,
         "anonymized": analysis.anonymized,
     }

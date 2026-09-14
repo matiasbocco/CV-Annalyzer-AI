@@ -40,6 +40,9 @@ export const T = {
     tieView:          'Ver ranking actualizado',
     // ResultsView
     idealProfile:     'Perfil ideal del candidato',
+    jobDescription:   'Descripción del puesto',
+    showAll:          'Mostrar todo',
+    showLess:         'Mostrar menos',
   },
   en: {
     rankCandidate:    'Candidate',
@@ -71,6 +74,9 @@ export const T = {
     tieNoChange:      'No changes in tied candidates order.',
     tieView:          'View updated ranking',
     idealProfile:     'Ideal candidate profile',
+    jobDescription:   'Job description',
+    showAll:          'Show all',
+    showLess:         'Show less',
   },
 } as const
 

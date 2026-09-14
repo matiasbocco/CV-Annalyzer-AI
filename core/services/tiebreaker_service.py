@@ -41,7 +41,7 @@ boost a dimension and negative to reduce it. Adjustments should reflect what
 the option implies (e.g. "I care more about hands-on experience" →
 experience: +15, education: -10).
 
-Respond in the same language as the job description provided. If the job description is in Spanish, write all questions and options in Spanish.
+Always write all questions and options in Spanish (español), regardless of the language of the job description.
 
 Reply with valid JSON only:
 {
