@@ -27,15 +27,8 @@ export default function ResultsView({
   useLayoutEffect(() => {
     const el = jdRef.current
     if (!el) return
-
     const measure = () => setJdClamped(el.scrollHeight > el.clientHeight + 1)
-
-    // Measure while collapsed (line-clamp-3 is active).
-    // Temporarily remove expanded state so scrollHeight reflects clamped height.
-    el.classList.add('line-clamp-3')
     measure()
-    el.classList.remove('line-clamp-3')
-
     window.addEventListener('resize', measure)
     return () => window.removeEventListener('resize', measure)
   }, [data.job_description])
