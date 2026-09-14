@@ -248,6 +248,7 @@ async def _analyze_pipeline(
             analysis_id=analysis.id,
             ranking=enriched,
             job_summary=result.job_summary,
+            job_description=job_description,
             category=CategoryInfo(slug=category.slug, display_name=category.display_name)
             if category else None,
             anonymized=True,
@@ -316,6 +317,7 @@ async def _match_pipeline(job_description: str, top_n: int, user_id: str | None 
             analysis_id=analysis.id,
             ranking=enriched,
             job_summary=result.job_summary,
+            job_description=job_description,
             category=CategoryInfo(slug=category.slug, display_name=category.display_name)
             if category else None,
             anonymized=True,

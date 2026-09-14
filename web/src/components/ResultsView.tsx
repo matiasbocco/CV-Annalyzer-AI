@@ -1,3 +1,4 @@
+import { useState, useRef, useLayoutEffect } from 'react'
 import type { AnalyzeResponse, Candidate } from '../api/types'
 import { T, useLang } from '../LangContext'
 import RankingTable from './RankingTable'
@@ -19,9 +20,39 @@ export default function ResultsView({
   onRankingUpdate: (r: Candidate[]) => void
 }) {
   const t = T[useLang()]
+  const [jdExpanded, setJdExpanded] = useState(false)
+  const [jdClamped, setJdClamped] = useState(false)
+  const jdRef = useRef<HTMLParagraphElement>(null)
+
+  useLayoutEffect(() => {
+    const el = jdRef.current
+    if (!el) return
+    const measure = () => setJdClamped(el.scrollHeight > el.clientHeight + 1)
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [data.job_description])
 
   return (
     <div className="space-y-5">
+      {/* Job description entered by the user */}
+      <div className="border-l-4 border-slate-500 bg-slate-800/50 rounded-r-xl p-4">
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+          {t.jobDescription}
+        </p>
+        <p ref={jdRef} className={`text-sm text-slate-300 leading-relaxed whitespace-pre-wrap${jdExpanded ? '' : ' line-clamp-3'}`}>
+          {data.job_description}
+        </p>
+        {(jdClamped || jdExpanded) && (
+          <button
+            onClick={() => setJdExpanded(v => !v)}
+            className="mt-1.5 text-xs text-sky-400 hover:text-sky-300 transition-colors"
+          >
+            {jdExpanded ? t.showLess : t.showAll}
+          </button>
+        )}
+      </div>
+
       {/* Ideal profile */}
       <div className="border-l-4 border-sky-500 bg-sky-500/5 rounded-r-xl p-4">
         <p className="text-xs font-semibold uppercase tracking-wider text-sky-500 mb-1">

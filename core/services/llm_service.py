@@ -51,10 +51,9 @@ RANKING_SYSTEM_PROMPT = (
     "Sort 'ranking' from highest 'score' to lowest. Also produce 'job_summary': "
     "2-3 sentences describing the ideal candidate profile based on the job "
     "description (independent of the CVs received).\n\n"
-    "Respond in the same language as the job description. If the job description "
-    "is in Spanish, respond in Spanish. If in English, respond in English. This "
-    "applies to ALL text fields: strengths, gaps, recommendations, summary, and "
-    "job_summary.\n\n"
+    "Always respond in Spanish (español), regardless of the language of the job "
+    "description. This applies to ALL text fields: strengths, gaps, recommendations, "
+    "summary, and job_summary. Never respond in English or any other language.\n\n"
     "Reply ONLY with valid JSON matching this exact shape:\n"
     "{\n"
     '  "ranking": [\n'
@@ -68,13 +67,13 @@ RANKING_SYSTEM_PROMPT = (
     '        "education": int 0-100,\n'
     '        "soft_skills": int 0-100\n'
     "      },\n"
-    '      "strengths": string[] (max 3),\n'
-    '      "gaps": string[] (max 3),\n'
-    '      "recommendations": string[] (max 2),\n'
-    '      "summary": string (2-3 sentences)\n'
+    '      "strengths": string[] (max 3, en español SIEMPRE),\n'
+    '      "gaps": string[] (max 3, en español SIEMPRE),\n'
+    '      "recommendations": string[] (max 2, en español SIEMPRE),\n'
+    '      "summary": string (2-3 oraciones, en español SIEMPRE)\n'
     "    }\n"
     "  ],\n"
-    '  "job_summary": string\n'
+    '  "job_summary": string (en español SIEMPRE)\n'
     "}"
 )
 

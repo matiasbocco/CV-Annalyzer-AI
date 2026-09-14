@@ -131,5 +131,6 @@ class AnalyzeResponse(BaseModel):
     analysis_id: uuid.UUID
     ranking: list[CandidateRankingWithSource]
     job_summary: str
+    job_description: str
     category: CategoryInfo | None = None
     anonymized: bool = True
