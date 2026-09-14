@@ -61,12 +61,11 @@ async def list_users(
 
     result = []
     for u in users:
-        # Analyses are org-scoped; use org count as the best available proxy.
         analysis_count: int = (
             await db.execute(
                 select(func.count())
                 .select_from(Analysis)
-                .where(Analysis.organization_id == u.organization_id)
+                .where(Analysis.user_id == u.id)
             )
         ).scalar_one()
 
