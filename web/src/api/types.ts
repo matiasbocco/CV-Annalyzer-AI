@@ -187,6 +187,7 @@ export interface AnalyzeResponse {
   analysis_id: string
   ranking: Candidate[]
   job_summary: string
+  job_description: string
   category: CategoryInfo | null
   anonymized: boolean
 }
