@@ -163,7 +163,7 @@ function ContactSection({ contact }: { contact: ContactInfo }) {
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t.contact}</p>
 
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-400">
-        {contact.email    && <span>✉ {contact.email}</span>}
+        {contact.email    && <span>{contact.email}</span>}
         {contact.phone    && <span>📞 {contact.phone}</span>}
         {contact.location && <span>📍 {contact.location}</span>}
         {contact.availability != null && (
