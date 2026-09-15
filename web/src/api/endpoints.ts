@@ -8,6 +8,7 @@ import type {
   CostsResponse,
   CreateUserResponse,
   CVListResponse,
+  CvTextResponse,
   ExtractContactResponse,
   FeedbackResponse,
   JobStatusResponse,
@@ -242,6 +243,13 @@ export async function getAnalysisHistory(
 
 export async function getAnalysisDetail(analysisId: string): Promise<AnalyzeResponse> {
   const { data } = await client.get<AnalyzeResponse>(`/analyses/${analysisId}`)
+  return data
+}
+
+// ── CV text ───────────────────────────────────────────────────────────────────
+
+export async function getCvText(cvId: string): Promise<CvTextResponse> {
+  const { data } = await client.get<CvTextResponse>(`/cvs/${cvId}/text`)
   return data
 }
 

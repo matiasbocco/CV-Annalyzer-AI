@@ -43,6 +43,12 @@ export const T = {
     jobDescription:   'Descripción del puesto',
     showAll:          'Mostrar todo',
     showLess:         'Mostrar menos',
+    // CvTextModal
+    viewCv:           'Ver CV',
+    copyFullText:     'Copiar texto completo',
+    copiedText:       'Copiado ✓',
+    closeModal:       'Cerrar',
+    cvLoadError:      'No se pudo cargar el texto del CV.',
   },
   en: {
     rankCandidate:    'Candidate',
@@ -77,6 +83,12 @@ export const T = {
     jobDescription:   'Job description',
     showAll:          'Show all',
     showLess:         'Show less',
+    // CvTextModal
+    viewCv:           'View CV',
+    copyFullText:     'Copy full text',
+    copiedText:       'Copied ✓',
+    closeModal:       'Close',
+    cvLoadError:      'Could not load the CV text.',
   },
 } as const
 

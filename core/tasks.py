@@ -233,7 +233,9 @@ async def _analyze_pipeline(
             pass
 
         for candidate in enriched:
-            candidate.contact = _build_contact(filename_to_cv.get(candidate.filename))
+            cv = filename_to_cv.get(candidate.filename)
+            candidate.contact = _build_contact(cv)
+            candidate.cv_id = str(cv.id) if cv else None
 
         # Re-persist ranking now that contact fields are populated.
         # The initial DB write (above) happened before ingest, so contacts were
@@ -287,6 +289,7 @@ async def _match_pipeline(job_description: str, top_n: int, user_id: str | None 
             factor = compute_recency_factor(bank_cv.last_seen_at) if bank_cv else 1.0
             c = _enrich_candidate(candidate, "bank", factor)
             c.contact = _build_contact(bank_cv)
+            c.cv_id = str(bank_cv.id) if bank_cv else None
             enriched.append(c)
         enriched.sort(key=lambda c: c.score, reverse=True)
 

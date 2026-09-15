@@ -65,6 +65,7 @@ class CandidateRankingWithSource(BaseModel):
     source: str                           # "uploaded" | "bank"
     recency_factor_applied: float = 1.0
     contact: Optional["ContactInfo"] = None
+    cv_id: Optional[str] = None
 
 
 class RankingResponse(BaseModel):
