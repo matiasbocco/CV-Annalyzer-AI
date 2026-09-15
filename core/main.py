@@ -348,6 +348,24 @@ async def analyze(
     return JSONResponse({"job_id": task.id, "status": "pending"}, status_code=202)
 
 
+# ── CV text retrieval ─────────────────────────────────────────────────────────
+
+@app.get("/cvs/{cv_id}/text")
+async def get_cv_text(
+    cv_id: str,
+    current_user: User = Depends(require_recruiter),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        uid = uuid.UUID(cv_id)
+    except ValueError:
+        raise HTTPException(400, "cv_id inválido — debe ser un UUID.")
+    cv = (await db.execute(select(CV).where(CV.id == uid))).scalar_one_or_none()
+    if cv is None:
+        raise HTTPException(404, "CV no encontrado.")
+    return {"cv_id": str(cv.id), "filename": cv.filename, "text_content": cv.text_content}
+
+
 # ── Candidate upload — Step 1: extract contact info (no DB write) ─────────────
 
 CRITICAL_CONTACT_FIELDS = {"full_name", "email", "availability"}

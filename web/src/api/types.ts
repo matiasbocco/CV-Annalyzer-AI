@@ -181,6 +181,13 @@ export interface Candidate {
   source: 'uploaded' | 'bank'
   recency_factor_applied: number
   contact: ContactInfo | null
+  cv_id: string | null
+}
+
+export interface CvTextResponse {
+  cv_id: string
+  filename: string
+  text_content: string
 }
 
 export interface AnalyzeResponse {
