@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Copy, MessageCircle, ExternalLink, Globe } from 'lucide-react'
+import { Copy, MessageCircle, ExternalLink, Globe, FileText } from 'lucide-react'
 import { cn, formatScore, getNivelColor } from '../lib/utils'
 import { T, useLang } from '../LangContext'
 import type { Availability, Candidate, ContactInfo } from '../api/types'
+import CvTextModal from './CvTextModal'
 
 const AVAIL_COLORS: Record<NonNullable<Availability>, string> = {
   available:   'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30',
@@ -249,6 +250,7 @@ export default function CandidateCard({
 }) {
   const t = T[useLang()]
   const name = c.contact?.full_name ?? c.filename
+  const [showCvModal, setShowCvModal] = useState(false)
 
   const SCORE_LABELS: Record<string, string> = {
     technical_skills: 'Técnico',
@@ -285,6 +287,16 @@ export default function CandidateCard({
               {c.nivel}
             </span>
             <SourceBadge source={c.source} recencyFactor={c.recency_factor_applied} />
+            {c.cv_id && (
+              <button
+                type="button"
+                onClick={() => setShowCvModal(true)}
+                className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-400 hover:text-sky-400 hover:border-sky-500/40 transition-colors"
+              >
+                <FileText size={11} strokeWidth={1.75} />
+                {t.viewCv}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -325,6 +337,14 @@ export default function CandidateCard({
       <p className="text-sm text-slate-400 italic border-l-2 border-slate-700 pl-3 leading-relaxed">
         {c.summary}
       </p>
+
+      {showCvModal && c.cv_id && (
+        <CvTextModal
+          cvId={c.cv_id}
+          filename={c.filename}
+          onClose={() => setShowCvModal(false)}
+        />
+      )}
     </div>
   )
 }

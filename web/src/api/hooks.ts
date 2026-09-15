@@ -6,6 +6,7 @@ import {
   extractContact,
   getAnalysisDetail,
   getAnalysisHistory,
+  getCvText,
   getJobStatus,
   matchJob,
   startTiebreaker,
@@ -116,6 +117,15 @@ export function useAnalysisDetail(analysisId: string | null) {
     queryFn: () => getAnalysisDetail(analysisId!),
     enabled: !!analysisId,
     staleTime: 60_000,
+  })
+}
+
+export function useCvText(cvId: string | null) {
+  return useQuery({
+    queryKey: ['cvText', cvId],
+    queryFn: () => getCvText(cvId!),
+    enabled: !!cvId,
+    staleTime: 5 * 60_000,
   })
 }
 
