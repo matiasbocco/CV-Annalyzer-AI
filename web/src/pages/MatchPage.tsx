@@ -11,9 +11,10 @@ import AsyncLoadingScreen from '../components/AsyncLoadingScreen'
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function MatchPage() {
-  const [jobDescription, setJobDescription]   = useState('')
-  const [topN, setTopN]                       = useState(10)
-  const [validationError, setValidationError] = useState<string | null>(null)
+  const [jobDescription, setJobDescription]             = useState('')
+  const [recruiterInstructions, setRecruiterInstructions] = useState('')
+  const [topN, setTopN]                                 = useState(10)
+  const [validationError, setValidationError]           = useState<string | null>(null)
   const [lang, setLang]                       = useState<Lang>('es')
   const [jobId, setJobId]                     = useState<string | null>(null)
 
@@ -21,11 +22,18 @@ export default function MatchPage() {
   const jobStatus = useJobStatus(jobId)
 
   const JD_MIN = 50
-  const JD_MAX = 3000
+  const JD_MAX = 4000
+
+  function buildCombinedJD(): string {
+    const jd    = jobDescription.trim()
+    const extra = recruiterInstructions.trim()
+    if (!extra) return jd
+    return `${jd}\n\n---\nInstrucciones adicionales del reclutador para el análisis:\n${extra}`
+  }
 
   function validate(): string | null {
     if (jobDescription.trim().length < JD_MIN) return `La descripción debe tener al menos ${JD_MIN} caracteres.`
-    if (jobDescription.length > JD_MAX) return `La descripción no puede superar los ${JD_MAX} caracteres.`
+    if (buildCombinedJD().length > JD_MAX) return `La descripción no puede superar los ${JD_MAX} caracteres.`
     if (topN < 1 || topN > 20) return 'El número de candidatos debe estar entre 1 y 20.'
     return null
   }
@@ -37,7 +45,7 @@ export default function MatchPage() {
     setValidationError(null)
     setLang(detectLang(jobDescription))
     match.mutate(
-      { jobDescription: jobDescription.trim(), topN },
+      { jobDescription: buildCombinedJD(), topN },
       { onSuccess: data => setJobId(data.job_id) },
     )
   }
@@ -45,6 +53,7 @@ export default function MatchPage() {
   function resetAll() {
     match.reset()
     setJobDescription('')
+    setRecruiterInstructions('')
     setValidationError(null)
     setJobId(null)
   }
@@ -129,9 +138,10 @@ export default function MatchPage() {
 
   // ── Form ───────────────────────────────────────────────────────────────────
 
+  const combinedLength = buildCombinedJD().length
   const charState =
-    jobDescription.length > JD_MAX ? 'over' :
-    jobDescription.length >= JD_MIN ? 'ok' : 'under'
+    combinedLength > JD_MAX         ? 'over'  :
+    jobDescription.length >= JD_MIN ? 'ok'    : 'under'
 
   return (
     <div className="min-h-screen bg-[#0A0A0F] py-10 px-4">
@@ -167,15 +177,30 @@ export default function MatchPage() {
               )}>
                 {charState === 'under' && `faltan ${JD_MIN - jobDescription.length} caracteres`}
                 {charState === 'ok'    && '✓'}
-                {charState === 'over'  && `${jobDescription.length - JD_MAX} de más`}
+                {charState === 'over'  && `${combinedLength - JD_MAX} de más`}
               </span>
               <span className={cn(
                 'text-xs',
                 charState === 'over' ? 'text-red-400' : 'text-slate-600',
               )}>
-                {jobDescription.length} / {JD_MAX}
+                {combinedLength} / {JD_MAX}
               </span>
             </div>
+          </div>
+
+          {/* Recruiter instructions */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Instrucciones adicionales para la IA{' '}
+              <span className="text-slate-600 font-normal">(opcional)</span>
+            </label>
+            <textarea
+              value={recruiterInstructions}
+              onChange={e => setRecruiterInstructions(e.target.value)}
+              rows={3}
+              placeholder="Ej: priorizá candidatos con experiencia en ventas B2B, valorá certificaciones en AWS, descartá perfiles sin inglés avanzado…"
+              className="w-full rounded-xl px-3 py-2.5 text-sm bg-slate-800/50 text-slate-200 placeholder-slate-600 resize-y border border-slate-700 focus:outline-none focus:ring-1 focus:border-sky-500 focus:ring-sky-500/20 transition-colors"
+            />
           </div>
 
           <div>
