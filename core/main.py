@@ -63,6 +63,7 @@ from core.services.cleanup_service import delete_old_analyses
 from core.routers.auth_router import router as auth_router
 from core.routers.protected_auth_router import router as protected_auth_router
 from core.routers.admin_router import router as admin_router
+from core.routers.internal_router import router as internal_router
 from core.db.models import UserRole
 from core.dependencies import require_recruiter
 from core.db.models import User
@@ -130,6 +131,7 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.include_router(auth_router)
 app.include_router(protected_auth_router)
 app.include_router(admin_router)
+app.include_router(internal_router)
 
 
 # ── Request bodies ────────────────────────────────────────────────────────────

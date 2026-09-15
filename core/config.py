@@ -35,6 +35,21 @@ class Settings(BaseSettings):
     # redeploys/restarts.
     chroma_db_path: str = "./chroma_db"
 
+    # Internal service-to-service vector API (ver vector_service.py).
+    # Se setea SOLO en producción, y SOLO en el servicio del worker de
+    # Celery, apuntando a la URL de red privada de Railway del backend.
+    # Cuando está seteado, TODAS las operaciones de ChromaDB del worker se
+    # reenvían al backend por HTTP en vez de tocar un Chroma local — así
+    # queda un único store autoritativo (el del backend) en vez de dos
+    # volúmenes que pueden desincronizarse en silencio.
+    internal_vector_api_url: str = ""
+    # Secreto compartido que validan los endpoints /internal/vector/* y que
+    # envía el worker cuando internal_vector_api_url está seteado. Debe ser
+    # IDÉNTICO en backend y worker en producción. El default de acá abajo
+    # solo aplica a desarrollo local (donde internal_vector_api_url queda
+    # vacío y este secreto nunca se usa).
+    internal_api_secret: str = "dev-internal-secret-not-for-production"
+
     @property
     def cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.frontend_url.split(",") if origin.strip()]
