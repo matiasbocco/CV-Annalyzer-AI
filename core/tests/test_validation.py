@@ -3,7 +3,7 @@ Tests for input validation rules:
   - File size limit (5 MB)          — service level
   - PDF page limit (3 pages)        — service level
   - Max 10 files per /analyze       — endpoint level
-  - Job description max 3000 chars  — endpoint level
+  - Job description max 4000 chars  — endpoint level
 """
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -103,17 +103,23 @@ async def test_job_description_too_long_returns_422():
     from httpx import ASGITransport, AsyncClient
     from core.main import app
     from core.db.database import get_db
+    from core.dependencies import require_recruiter
+
+    mock_user = MagicMock()
+    mock_user.id = None
+    mock_user.role = "recruiter"
 
     app.dependency_overrides[get_db] = _make_db_override()
+    app.dependency_overrides[require_recruiter] = lambda: mock_user
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             files = [("files", ("cv.pdf", b"%PDF-1.4", "application/pdf"))]
             resp = await client.post(
                 "/analyze",
                 files=files,
-                data={"job_description": "a" * 3001, "include_bank": "false"},
+                data={"job_description": "a" * 4001, "include_bank": "false"},
             )
         assert resp.status_code == 422
-        assert "3000" in resp.json()["detail"]
+        assert "4000" in resp.json()["detail"]
     finally:
         app.dependency_overrides.clear()

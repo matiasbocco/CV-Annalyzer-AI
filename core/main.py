@@ -163,7 +163,7 @@ def _build_contact(cv) -> ContactInfo | None:
 
 
 _JD_MIN = 50
-_JD_MAX = 3000
+_JD_MAX = 4000
 _MAX_UPLOAD_FILES = settings.max_cvs_per_analysis
 
 
