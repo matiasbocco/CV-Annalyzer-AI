@@ -13,7 +13,16 @@ from sqlalchemy import and_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.db.database import get_db
-from core.db.models import Analysis, CV, CVAnalysis, Feedback, JobCategory, User, UserRole
+from core.db.models import (
+    Analysis,
+    AnalysisCounter,
+    CV,
+    CVAnalysis,
+    Feedback,
+    JobCategory,
+    User,
+    UserRole,
+)
 from core.dependencies import require_admin
 from core.services.auth_service import hash_password
 from core.services.cleanup_service import delete_old_analyses
@@ -61,14 +70,6 @@ async def list_users(
 
     result = []
     for u in users:
-        analysis_count: int = (
-            await db.execute(
-                select(func.count())
-                .select_from(Analysis)
-                .where(Analysis.user_id == u.id)
-            )
-        ).scalar_one()
-
         result.append(
             {
                 "id": str(u.id),
@@ -79,7 +80,7 @@ async def list_users(
                 "is_active": u.is_active,
                 "last_login": u.last_login.isoformat() if u.last_login else None,
                 "created_at": u.created_at.isoformat(),
-                "analysis_count": analysis_count,
+                "analysis_count": u.total_analyses_count,
             }
         )
     return result
@@ -190,9 +191,18 @@ async def _compute_analysis_metrics(
     def _scope(stmt):
         return stmt.where(Analysis.user_id == user_id) if user_id else stmt
 
-    total_analyses: int = (
-        await db.execute(_scope(select(func.count()).select_from(Analysis)))
-    ).scalar_one()
+    if user_id:
+        total_analyses: int = (
+            await db.execute(
+                select(User.total_analyses_count).where(User.id == user_id)
+            )
+        ).scalar_one()
+    else:
+        total_analyses: int = (
+            await db.execute(
+                select(AnalysisCounter.total_count).where(AnalysisCounter.id == 1)
+            )
+        ).scalar_one()
 
     analyses_last_30: int = (
         await db.execute(
@@ -259,10 +269,18 @@ async def _compute_analysis_costs(
     db: AsyncSession, user_id: Optional[_uuid.UUID] = None
 ) -> dict:
     """Analysis-scoped cost estimation. When user_id is given, filter to that user."""
-    stmt = select(func.count()).select_from(Analysis)
     if user_id:
-        stmt = stmt.where(Analysis.user_id == user_id)
-    total_analyses: int = (await db.execute(stmt)).scalar_one()
+        total_analyses: int = (
+            await db.execute(
+                select(User.total_analyses_count).where(User.id == user_id)
+            )
+        ).scalar_one()
+    else:
+        total_analyses: int = (
+            await db.execute(
+                select(AnalysisCounter.total_count).where(AnalysisCounter.id == 1)
+            )
+        ).scalar_one()
 
     estimated_embedding_calls = total_analyses * _EMBEDDINGS_PER_ANALYSIS
 
@@ -485,7 +503,7 @@ async def admin_cleanup_analyses(
     current_user: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Manually trigger deletion of analyses older than 7 days."""
+    """Manually trigger deletion of analyses older than 30 days."""
     deleted_count = await delete_old_analyses(db)
     return {"deleted_count": deleted_count}
 
