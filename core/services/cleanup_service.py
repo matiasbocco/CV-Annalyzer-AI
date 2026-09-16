@@ -33,7 +33,7 @@ from core.db.models import Analysis, CVAnalysis, Feedback, TiebreakerSession
 
 log = logging.getLogger(__name__)
 
-_DEFAULT_MAX_AGE_DAYS = 7
+_DEFAULT_MAX_AGE_DAYS = 30
 
 
 async def delete_old_analyses(

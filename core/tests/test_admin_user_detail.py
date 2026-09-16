@@ -115,6 +115,8 @@ async def _make_analyses(db_session, org, user, count):
                 user_id=user.id,
             )
         )
+    user.total_analyses_count = (user.total_analyses_count or 0) + count
+    db_session.add(user)
     await db_session.commit()
 
 

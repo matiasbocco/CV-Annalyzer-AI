@@ -111,7 +111,7 @@ async def lifespan(app: FastAPI):
             print(f"[startup] Expired {expired} stale CV(s).")
         deleted = await delete_old_analyses(db)
         if deleted:
-            print(f"[startup] Deleted {deleted} analyses older than 7 days.")
+            print(f"[startup] Deleted {deleted} analyses older than 30 days.")
         await _check_bank_drift(db)
     yield
 
