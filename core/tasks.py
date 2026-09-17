@@ -45,6 +45,7 @@ from core.models.response import (
     ContactInfo,
 )
 from core.services import vector_service
+from core.services.analysis_counter_service import increment_analysis_counters
 from core.services.anonymization_service import anonymize_cvs
 from core.services.category_service import get_or_create_category
 from core.services.cv_bank_service import ingest_cv, update_bank_cv_seen
@@ -208,6 +209,7 @@ async def _analyze_pipeline(
             user_id=uuid.UUID(user_id) if user_id else None,
         )
         db.add(analysis)
+        await increment_analysis_counters(db, user_id)
         await db.commit()
 
         filename_to_cv: dict[str, CV] = {}
@@ -305,6 +307,7 @@ async def _match_pipeline(job_description: str, top_n: int, user_id: str | None 
             user_id=uuid.UUID(user_id) if user_id else None,
         )
         db.add(analysis)
+        await increment_analysis_counters(db, user_id)
         await db.commit()
 
         filename_to_cv = {cv.filename: cv for cv in bank_cv_records}

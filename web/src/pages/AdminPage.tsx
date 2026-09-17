@@ -470,11 +470,12 @@ function MetricasTab({ userId }: { userId?: string }) {
     <div className="space-y-6">
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetricCard label="Total análisis" value={metrics.total_analyses} />
+        <MetricCard label="Total análisis" value={metrics.total_analyses} sub="Total histórico" />
         <MetricCard label="Últimos 30 días" value={metrics.analyses_last_30_days} />
         <MetricCard
           label="Rating promedio"
           value={metrics.average_rating != null ? `${fmt(metrics.average_rating)} / 5` : '—'}
+          sub="Basado en los últimos 30 días"
         />
         {global && <MetricCard label="CVs en banco" value={global.total_cvs_in_bank} />}
       </div>
@@ -515,7 +516,8 @@ function MetricasTab({ userId }: { userId?: string }) {
       {/* Top categories */}
       {metrics.top_categories.length > 0 && (
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-          <p className="text-sm font-medium text-slate-300 mb-3">Top 5 categorías</p>
+          <p className="text-sm font-medium text-slate-300 mb-1">Top 5 categorías</p>
+          <p className="text-xs text-slate-500 mb-3">Basado en los últimos 30 días</p>
           <div className="space-y-2">
             {metrics.top_categories.map((c) => (
               <div key={c.slug} className="flex items-center gap-3">
@@ -813,7 +815,7 @@ function CostosTab({ userId }: { userId?: string }) {
         <MetricCard
           label="Costo total estimado"
           value={`$${fmt(costs.estimated_total_cost_usd, 4)} USD`}
-          sub={`${costs.total_analyses} análisis procesados`}
+          sub={`${costs.total_analyses} análisis procesados (total histórico)`}
         />
         <MetricCard
           label="Costo promedio por análisis"

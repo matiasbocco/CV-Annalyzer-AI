@@ -64,6 +64,9 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), nullable=False
     )
+    total_analyses_count: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False, server_default="0"
+    )
 
 
 # ── CV bank (permanent candidate information) ─────────────────────────────────
@@ -192,6 +195,23 @@ class Analysis(Base):
         Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+# ── Analysis counters (persistent, never decrease) ────────────────────────
+
+class AnalysisCounter(Base):
+    """Singleton row (id=1) tracking the lifetime total of analyses ever
+    created — decoupled from cleanup_service's periodic purge (30-day
+    retention), which deletes old rows from `analyses` but must never make
+    this number go down. User.total_analyses_count is the per-user
+    equivalent; this is the global total shown in the admin Métricas tab.
+    """
+    __tablename__ = "analysis_counters"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    total_count: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False, server_default="0"
+    )
 
 
 # ── Feedback ──────────────────────────────────────────────────────────────────
